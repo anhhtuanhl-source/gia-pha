@@ -478,12 +478,16 @@ function formValues(){const n=$('#f-name');if(!n)return null;return{name:n.value
 /* tự lưu: cập nhật dữ liệu và cây, không vẽ lại bảng đang gõ */
 function commitForm(){clearTimeout(formTimer);if(!formDirty)return false;formDirty=false;const p=byId()[sel],v=formValues();if(!p||!v)return false;
  if(!v.name)v.name=p.name;
+ if(v.name!==p.name){const gg=guessG(v.name);if(gg&&gg!==v.g){v.g=gg;$('#f-g').value=gg;document.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.g===gg))}}
  if(p.name===v.name&&p.g===v.g&&(p.note||'')===v.note)return false;
  if(formHistFor!==sel){hist.push(JSON.stringify(D));formHistFor=sel}
  Object.assign(p,v);dirty=true;setPill('Chưa lưu…');drawTree();
  const h=$('#panel h2');if(h){h.textContent=p.name||'(chưa đặt tên)';h.className=p.g==='f'?'f':'m'}
  const sb2=$('#panel .sub');if(sb2)sb2.textContent=sb2.textContent.replace(/^(Nam|Nữ)/,p.g==='f'?'Nữ':'Nam');
  clearTimeout(saveTimer);saveTimer=setTimeout(save,600);return true}
+/* tên đệm Văn → nam, Thị → nữ (không xét chữ cuối là tên gọi) */
+function guessG(name){const w=String(name||'').normalize('NFC').trim().toLowerCase().split(/\s+/).slice(0,-1);
+ if(w.includes('văn'))return'm';if(w.includes('thị'))return'f';return null}
 function formChanged(){formDirty=true;clearTimeout(formTimer);formTimer=setTimeout(commitForm,500)}
 function select(id){if(id===sel)return;commitForm();formHistFor=null;sel=id;render()}
 function names(ids,B){return ids.filter(i=>B[i]).map(i=>`<a data-go="${i}" tabindex="0">${esc(B[i].name||'(chưa đặt tên)')}</a>`).join(', ')||'—'}
