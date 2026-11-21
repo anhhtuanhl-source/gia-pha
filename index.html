@@ -78,16 +78,27 @@ main{flex:1;display:flex;min-height:0;position:relative}
 .zoom button{width:44px;min-height:44px;padding:0;font-size:20px;background:rgba(40,8,6,.85);border-color:var(--gold);color:var(--gold)}
 .hint{position:absolute;left:14px;bottom:14px;font-size:13px;color:#e6c995;background:rgba(30,6,4,.6);padding:6px 10px;border-radius:6px;max-width:60%}
 .u rect.card{fill:var(--ivory);stroke:var(--gold);stroke-width:2}
-.u text.gn{font:500 11px "Be Vietnam Pro",sans-serif;fill:#a07a3a}
+.u text.gn{font:600 13px "Be Vietnam Pro",sans-serif;fill:#a07a3a}
 .u line.dv{stroke:#eadfcd;stroke-width:1}
 .n rect.hit{fill:transparent}
 .n.sel rect.hit{fill:none;stroke:var(--gold);stroke-width:1.5}
 .n.hit rect.hit{fill:#fff0c4}
-.n text.nm{font:600 14px "Be Vietnam Pro",sans-serif}
+.n text.nm{font:600 17px "Be Vietnam Pro",sans-serif}
 .n.m text.nm{fill:var(--heink)}.n.f text.nm{fill:var(--sheink)}
 .n text.yr{font:400 12px "Be Vietnam Pro",sans-serif;fill:#8a7468}
 .n{cursor:pointer;outline:none}
 @media(hover:hover){.n:hover rect.hit{fill:#faf1e2}}
+.n.drop rect.hit{fill:#ffe3a3;stroke:var(--gold);stroke-width:2}
+.n.src{opacity:.35}
+.dghost{position:absolute;z-index:6;pointer-events:none;transform:translate(-50%,-140%);background:var(--ivory);border:2px solid var(--gold);border-radius:10px;padding:8px 14px;font:600 16px "Be Vietnam Pro",sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.45);white-space:nowrap}
+.dghost.m{color:var(--heink)}.dghost.f{color:var(--sheink)}
+.trash{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:none;align-items:center;gap:8px;padding:12px 20px;border-radius:99px;background:rgba(40,8,6,.9);border:2px dashed #e1a59c;color:#fbeedd;font-size:15px;z-index:5;pointer-events:none}
+#stage.dnd .trash{display:flex}#stage.dnd .hint{display:none}
+.trash.on{background:#a3271c;border-style:solid;border-color:#fff}
+.dmenu{position:absolute;z-index:7;background:var(--panel);color:var(--ink);border:1px solid var(--gold);border-radius:12px;padding:10px;box-shadow:0 12px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:6px;min-width:220px;max-width:min(300px,90%)}
+.dmenu p{margin:2px 4px 6px;font-size:14px;color:var(--mute)}
+.dmenu button{justify-content:flex-start;white-space:normal;text-align:left}
+.toast button{margin-left:12px;min-height:32px;background:var(--gold);color:#3a1208;border:0}
 .gsel{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .gsel button{background:var(--bg);color:var(--mute);border:1px solid var(--line);min-height:44px;font-size:15px}
 .gsel button[data-g=m][aria-pressed=true]{background:var(--hebg);color:var(--heink);border-color:var(--he);font-weight:600}
@@ -155,7 +166,9 @@ const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON
 const S={screen:'loading',user:null,trees:[],tree:null,canEdit:false,isOwner:false,authTab:'login',authMsg:'',authEmail:''};
 let D=null,sel=null,hist=[],query='',dirty=false,saving=false,saveTimer=null;
 
-function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+function toast(m,undo){document.querySelectorAll('.toast').forEach(x=>x.remove());const t=document.createElement('div');t.className='toast';t.textContent=m;
+ if(undo){const b=document.createElement('button');b.textContent='Hoàn tác';b.onclick=()=>{t.remove();undo()};t.appendChild(b)}
+ document.body.appendChild(t);setTimeout(()=>t.remove(),undo?6000:3200)}
 function errText(e){const m=String(e&&e.message||e||'');
  if(/invalid login/i.test(m))return'Email hoặc mật khẩu không đúng.';
  if(/not confirmed/i.test(m))return'Email chưa được xác nhận. Hãy mở thư xác nhận trong hộp thư rồi đăng nhập lại.';
@@ -258,7 +271,8 @@ ${S.isOwner?'<button class="gold" id="share">Chia sẻ</button>':''}
 <button class="hghost" id="more">Thêm…</button>
 ${ro?'':'<span class="pill" id="pill"></span>'}</div>`)+
 `<main><div id="stage"><svg id="svg" aria-label="Cây gia phả"><g id="vp"></g></svg>
-<div class="hint">Kéo để di chuyển · cuộn hoặc chụm hai ngón để phóng to · bấm vào một người để ${ro?'xem':'sửa'}</div>
+<div class="hint">Kéo nền để di chuyển · chụm hoặc cuộn để phóng to · bấm vào người để ${ro?'xem':'sửa'}${ro?'':' · giữ rồi kéo một người để chuyển gia đình hoặc xoá'}</div>
+<div class="trash" id="trash">🗑 Thả vào đây để xoá</div>
 <div class="zoom"><button id="zin" aria-label="Phóng to">+</button><button id="zout" aria-label="Thu nhỏ">−</button><button id="zfit" aria-label="Vừa màn hình" style="font-size:15px">⤢</button></div></div>
 <aside id="panel"></aside></main>`;
  bindTop();bindStage();
@@ -267,7 +281,7 @@ ${ro?'':'<span class="pill" id="pill"></span>'}</div>`)+
  const lo=$('#lo');if(lo)lo.onclick=async()=>{await flushNow();await sb.auth.signOut();S.user=null;openTree(S.tree.id)};
  $('#clan').onchange=e=>{if(ro)return;S.tree.name=e.target.value.trim()||'Gia phả';changed()};
  $('#search').oninput=e=>{query=e.target.value;drawTree();const q=query.trim().toLowerCase();if(!q)return;const B=byId();const n=nodes.find(n=>(B[n.id].name||'').toLowerCase().includes(q));if(n)center(n.id)};
- const u=$('#undo');if(u)u.onclick=()=>{const h=hist.pop();if(!h){toast('Không còn gì để hoàn tác');return}D=JSON.parse(h);if(sel&&!byId()[sel])sel=null;changed()};
+ const u=$('#undo');if(u)u.onclick=()=>{if(!hist.length){toast('Không còn gì để hoàn tác');return}undoLast()};
  const sh=$('#share');if(sh)sh.onclick=shareDlg;
  $('#more').onclick=moreDlg;
  render();requestAnimationFrame(()=>fit());
@@ -346,7 +360,7 @@ ${S.isOwner?'<button class="danger" id="del">Xoá gia phả này</button>':''}
 /* ---------- bố cục cây ---------- */
 const byId=()=>Object.fromEntries(D.people.map(p=>[p.id,p]));
 function uid(){return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-const NW=210,RH=48,HD=24,HG=26,VG=60;
+const NW=230,RH=44,HD=30,HG=26,VG=60;
 let nodes=[],links=[],units=[],bounds={x:0,y:0,w:1,h:1};
 function layout(){
  const B=byId(),P=D.people,placed=new Set();
@@ -396,12 +410,10 @@ function drawTree(){
  layout();const B=byId(),q=query.trim().toLowerCase();
  $('#vp').innerHTML=links.join('')+units.map(u=>{
   const rows=u.disp.map((id,i)=>{const p=B[id];const hit=q&&(p.name||'').toLowerCase().includes(q);
-   const role=id!==u.blood?(p.g==='f'?'Vợ':'Chồng'):'';
-   const sub=role;
    return `${i?`<line class="dv" x1="12" x2="${NW-12}" y1="${HD+i*RH}" y2="${HD+i*RH}"/>`:''}<g class="n ${p.g==='f'?'f':'m'}${id===sel?' sel':''}${hit?' hit':''}" data-id="${id}" transform="translate(0 ${HD+i*RH})">
-<rect class="hit" x="4" y="2" width="${NW-8}" height="${RH-4}" rx="6"/><rect x="8" y="8" width="4" height="${RH-16}" rx="2" fill="${p.g==='f'?'var(--she)':'var(--he)'}"/>
-<text class="nm" x="20" y="${sub?21:29}">${esc(cut(p.name||'(chưa đặt tên)',24))}</text>${sub?`<text class="yr" x="20" y="38">${sub}</text>`:''}</g>`}).join('');
-  return `<g class="u" transform="translate(${u.x} ${u.y})"><rect class="card" width="${NW}" height="${u.h}" rx="10"/><text class="gn" x="12" y="17">Đời ${u.g+1}</text>${rows}</g>`}).join('');
+<rect class="hit" x="4" y="2" width="${NW-8}" height="${RH-4}" rx="6"/><rect x="9" y="9" width="4" height="${RH-18}" rx="2" fill="${p.g==='f'?'var(--she)':'var(--he)'}"/>
+<text class="nm" x="22" y="${RH/2+6}">${esc(cut(p.name||'(chưa đặt tên)',22))}</text></g>`}).join('');
+  return `<g class="u" transform="translate(${u.x} ${u.y})"><rect class="card" width="${NW}" height="${u.h}" rx="10"/><text class="gn" x="14" y="21">Đời ${u.g+1}</text>${rows}</g>`}).join('');
  const gens=units.length?Math.max(...units.map(u=>u.g))+1:0;
  $('#stat').textContent=`${D.people.length} thành viên · ${gens} đời${S.canEdit?'':' · chỉ xem'}`;
 }
@@ -411,22 +423,47 @@ let T={x:40,y:40,k:1};
 function apply(anim){const vp=$('#vp');vp.classList.toggle('nt',!anim);vp.style.transform=`translate(${T.x}px,${T.y}px) scale(${T.k})`}
 function fit(all){const st=document.getElementById('stage');if(!st)return;const W=st.clientWidth,H=st.clientHeight,pad=40;
  let k=Math.min(1.2,(W-pad*2)/bounds.w,(H-pad*2)/bounds.h);
- if(!all&&k<.55&&nodes.length){k=.65;T={k,x:W/2-(nodes[0].x+NW/2)*k,y:pad-bounds.y*k};apply(true);return}
+ if(!all&&k<.55&&nodes.length){k=.8;T={k,x:W/2-(nodes[0].x+NW/2)*k,y:pad-bounds.y*k};apply(true);return}
  k=Math.max(.06,k);T={k,x:(W-bounds.w*k)/2-bounds.x*k,y:Math.max(pad,(H-bounds.h*k)/2)-bounds.y*k};apply(true)}
 function zoomAt(f,cx,cy,anim){const k=Math.min(2.5,Math.max(.06,T.k*f));f=k/T.k;T.x=cx-(cx-T.x)*f;T.y=cy-(cy-T.y)*f;T.k=k;apply(anim)}
 function center(id){const st=$('#stage'),n=nodes.find(n=>n.id===id);if(!n||!st)return;T.x=st.clientWidth/2-(n.x+NW/2)*T.k;T.y=st.clientHeight/2-(n.y+RH/2)*T.k;apply(true)}
 function bindStage(){
- const stage=$('#stage'),pts=new Map();let moved=0,pinch=0;
- stage.addEventListener('pointerdown',e=>{if(e.target.closest('.zoom'))return;stage.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=0;stage.classList.add('drag');
-  if(pts.size===2){const[a,b]=[...pts.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y)}});
+ const stage=$('#stage'),pts=new Map();let moved=0,pinch=0,dn=null,lp=null;
+ /* dn: kéo một người {id,ghost,over} ; lp: chờ nhấn giữ */
+ const rel=e=>{const r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};
+ const startDrag=(id,e)=>{const p=byId()[id];if(!p)return;closeMenu();
+  const g=document.createElement('div');g.className='dghost '+(p.g==='f'?'f':'m');g.textContent=p.name||'(chưa đặt tên)';stage.appendChild(g);
+  dn={id,ghost:g,over:null};stage.classList.add('dnd');
+  document.querySelectorAll(`.n[data-id="${id}"]`).forEach(n=>n.classList.add('src'));moveDrag(e);try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}};
+ const moveDrag=e=>{const r=rel(e);dn.ghost.style.left=r.x+'px';dn.ghost.style.top=r.y+'px';
+  const el=document.elementFromPoint(e.clientX,e.clientY),tr=$('#trash');
+  const overTrash=!!(el&&el.closest('#trash'))||(()=>{const b=tr.getBoundingClientRect();return e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom})();
+  const n=!overTrash&&el&&el.closest('.n');const t=n&&n.dataset.id!==dn.id?n.dataset.id:null;
+  document.querySelectorAll('.n.drop').forEach(x=>x.classList.remove('drop'));if(t)document.querySelectorAll(`.n[data-id="${t}"]`).forEach(x=>x.classList.add('drop'));
+  tr.classList.toggle('on',overTrash);dn.over=overTrash?'trash':t;
+  const W=stage.clientWidth,H=stage.clientHeight,ed=44;let dx=0,dy=0;if(r.x<ed)dx=10;if(r.x>W-ed)dx=-10;if(r.y<ed)dy=10;if(r.y>H-ed)dy=-10;if(dx||dy){T.x+=dx;T.y+=dy;apply(false)}};
+ const endDrag=e=>{const d=dn;dn=null;stage.classList.remove('dnd');d.ghost.remove();$('#trash').classList.remove('on');
+  document.querySelectorAll('.n.drop,.n.src').forEach(x=>x.classList.remove('drop','src'));
+  if(!e||!d.over)return;if(d.over==='trash'){removePerson(d.id);return}const r=rel(e);dropMenu(d.id,d.over,r.x+8,r.y+8)};
+ stage.addEventListener('contextmenu',e=>{if(e.target.closest('.n'))e.preventDefault()});
+ stage.addEventListener('pointerdown',e=>{if(e.target.closest('.zoom')||e.target.closest('.dmenu'))return;closeMenu();stage.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY});moved=0;
+  const n=e.target.closest('.n');clearTimeout(lp&&lp.t);lp=null;
+  if(n&&S.canEdit&&pts.size===1){lp={id:n.dataset.id,mouse:e.pointerType==='mouse'};if(!lp.mouse){const ev={clientX:e.clientX,clientY:e.clientY};lp.t=setTimeout(()=>{if(lp&&moved<10){startDrag(lp.id,ev);lp=null}},380)}}
+  else stage.classList.add('drag');
+  if(pts.size===2){clearTimeout(lp&&lp.t);lp=null;const[a,b]=[...pts.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y)}});
  stage.addEventListener('pointermove',e=>{const p=pts.get(e.pointerId);if(!p)return;
-  if(pts.size===1){T.x+=e.clientX-p.x;T.y+=e.clientY-p.y;moved+=Math.abs(e.clientX-p.x)+Math.abs(e.clientY-p.y);apply(false)}
+  if(dn){moveDrag(e);p.x=e.clientX;p.y=e.clientY;return}
+  if(lp&&lp.mouse&&Math.hypot(e.clientX-p.sx,e.clientY-p.sy)>6){const id=lp.id;lp=null;startDrag(id,e);return}
+  if(pts.size===1){T.x+=e.clientX-p.x;T.y+=e.clientY-p.y;moved+=Math.abs(e.clientX-p.x)+Math.abs(e.clientY-p.y);if(moved>=10&&lp){clearTimeout(lp.t);lp=null}if(moved>2)stage.classList.add('drag');apply(false)}
   p.x=e.clientX;p.y=e.clientY;
   if(pts.size===2){const[a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y),r=stage.getBoundingClientRect();
    if(pinch)zoomAt(d/pinch,(a.x+b.x)/2-r.left,(a.y+b.y)/2-r.top,false);pinch=d;moved=99}});
  const up=e=>{const had=pts.has(e.pointerId);pts.delete(e.pointerId);if(pts.size<2)pinch=0;if(!pts.size)stage.classList.remove('drag');
+  if(lp){clearTimeout(lp.t);lp=null}
+  if(dn){endDrag(e.type==='pointerup'?e:null);return}
   if(had&&moved<6&&e.type==='pointerup'){const g=document.elementFromPoint(e.clientX,e.clientY)?.closest('.n');select(g?g.dataset.id:null)}};
  stage.addEventListener('pointerup',up);stage.addEventListener('pointercancel',up);
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(dn)endDrag(null);closeMenu()}});
  stage.addEventListener('wheel',e=>{e.preventDefault();const r=stage.getBoundingClientRect();zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX-r.left,e.clientY-r.top,false)},{passive:false});
  $('#zin').onclick=()=>zoomAt(1.25,stage.clientWidth/2,stage.clientHeight/2,true);
  $('#zout').onclick=()=>zoomAt(.8,stage.clientWidth/2,stage.clientHeight/2,true);
@@ -462,10 +499,29 @@ ${(p.parents||[]).filter(i=>B[i]).length<2?'<button class="ghost" data-a="parent
  el.querySelectorAll('[data-go]').forEach(a=>{const f=()=>{select(a.dataset.go);center(a.dataset.go)};a.onclick=f;a.onkeydown=e=>{if(e.key==='Enter')f()}});
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,p,b));
 }
+function undoLast(){const h=hist.pop();if(!h)return;D=JSON.parse(h);if(sel&&!byId()[sel])sel=null;changed()}
+function removePerson(id){const p=byId()[id];if(!p)return;hist.push(JSON.stringify(D));D.people=D.people.filter(x=>x.id!==id);D.people.forEach(x=>{x.parents=(x.parents||[]).filter(i=>i!==id);x.spouses=(x.spouses||[]).filter(i=>i!==id)});if(sel===id)sel=null;changed();toast('Đã xoá '+(p.name||'một người'),undoLast)}
+function isDesc(a,b){/* a là con cháu của b? */const B=byId(),seen=new Set(),st=[a];while(st.length){const x=st.pop();if(x===b)return true;if(seen.has(x))continue;seen.add(x);(B[x]&&B[x].parents||[]).forEach(q=>st.push(q))}return false}
+function moveAsChild(id,t){const B=byId(),p=B[id],T=B[t];if(!p||!T)return;
+ if(id===t||isDesc(t,id)){toast('Không thể: '+T.name+' là con cháu của '+p.name);return}
+ hist.push(JSON.stringify(D));const sp=(T.spouses||[]).find(i=>B[i]);p.parents=sp?[t,sp]:[t];
+ p.spouses=(p.spouses||[]);changed();center(id);toast('Đã chuyển '+p.name+' làm con của '+T.name,undoLast)}
+function makeSpouse(id,t){const B=byId(),p=B[id],T=B[t];if(!p||!T||id===t)return;
+ if((p.spouses||[]).includes(t)){toast('Hai người đã là vợ chồng');return}
+ if(isDesc(t,id)||isDesc(id,t)){toast('Không thể ghép vợ chồng giữa cha mẹ và con cháu');return}
+ hist.push(JSON.stringify(D));(p.spouses=p.spouses||[]).push(t);(T.spouses=T.spouses||[]).push(id);
+ if(p.g===T.g)p.g=T.g==='f'?'m':'f';changed();center(id);toast('Đã ghép '+p.name+' với '+T.name,undoLast)}
+function dropMenu(id,t,x,y){const B=byId(),p=B[id],T=B[t],st=$('#stage');closeMenu();
+ const m=document.createElement('div');m.className='dmenu';m.id='dmenu';
+ m.innerHTML=`<p>Chuyển <b>${esc(p.name)}</b> tới <b>${esc(T.name)}</b></p><button class="gold" data-k="c">Làm con của ${esc(T.name)}</button><button class="ghost" data-k="s">Làm ${T.g==='f'?'chồng':'vợ'} của ${esc(T.name)}</button><button class="ghost" data-k="x">Huỷ</button>`;
+ st.appendChild(m);const W=st.clientWidth,H=st.clientHeight;m.style.left=Math.max(8,Math.min(x,W-m.offsetWidth-8))+'px';m.style.top=Math.max(8,Math.min(y,H-m.offsetHeight-8))+'px';
+ m.addEventListener('pointerdown',e=>e.stopPropagation());
+ m.querySelectorAll('button').forEach(b=>b.onclick=()=>{closeMenu();if(b.dataset.k==='c')moveAsChild(id,t);if(b.dataset.k==='s')makeSpouse(id,t)})}
+function closeMenu(){const m=$('#dmenu');if(m)m.remove()}
 function act(a,p,btn){
  const B=byId();
  if(a==='del'){if(btn.dataset.ok!=='1'){btn.dataset.ok='1';btn.textContent='Bấm lần nữa để xoá';$('#cf').textContent='Các mối quan hệ của người này cũng bị gỡ. Có thể hoàn tác.';return}
-  hist.push(JSON.stringify(D));D.people=D.people.filter(x=>x.id!==p.id);D.people.forEach(x=>{x.parents=(x.parents||[]).filter(i=>i!==p.id);x.spouses=(x.spouses||[]).filter(i=>i!==p.id)});sel=null;changed();return}
+  removePerson(p.id);return}
  hist.push(JSON.stringify(D));const n={id:uid(),name:'',g:'m',b:'',d:'',note:'',parents:[],spouses:[]};
  if(a==='child'){n.name='Con mới';const sp=(p.spouses||[]).find(i=>B[i]);n.parents=sp?[p.id,sp]:[p.id]}
  if(a==='spouse'){n.g=p.g==='f'?'m':'f';n.name=p.g==='f'?'Chồng mới':'Vợ mới';n.spouses=[p.id];(p.spouses=p.spouses||[]).push(n.id)}
