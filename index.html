@@ -17,6 +17,7 @@
 *{box-sizing:border-box;min-width:0}
 html,body{height:100%}
 html{-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Be Vietnam Pro",system-ui,sans-serif}
 body.tree{overflow:hidden}
 #app{min-height:100%;display:flex;flex-direction:column}
@@ -289,7 +290,7 @@ ${ro?'':'<span class="pill" id="pill"></span>'}</div>`)+
 
 /* ---------- lưu lên máy chủ ---------- */
 function setPill(t){const p=$('#pill');if(p)p.textContent=t}
-function changed(){dirty=true;setPill('Chưa lưu…');render();clearTimeout(saveTimer);saveTimer=setTimeout(save,900)}
+function changed(){formDirty=false;dirty=true;setPill('Chưa lưu…');render();clearTimeout(saveTimer);saveTimer=setTimeout(save,900)}
 async function save(force){
  if(!dirty||saving||!S.canEdit||!S.tree)return;
  saving=true;setPill('Đang lưu…');
@@ -308,8 +309,8 @@ function conflictDlg(){const d=$('#dlg');d.innerHTML=`<h3>Có người vừa s�
 <div class="acts"><button class="gold" id="c1">Tải bản mới nhất</button><button class="ghost" id="c2">Giữ bản của tôi, ghi đè</button></div><p style="margin-top:10px">Tải bản mới sẽ bỏ những thay đổi bạn chưa lưu.</p>`;d.showModal();
  $('#c1').onclick=()=>{d.close();dirty=false;openTree(S.tree.id)};
  $('#c2').onclick=()=>{d.close();save(true)}}
-addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushNow()});
+addEventListener('beforeunload',e=>{if(dirty||formDirty){e.preventDefault();e.returnValue=''}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){commitForm();flushNow()}});
 
 /* ---------- chia sẻ ---------- */
 function shareDlg(){
@@ -472,7 +473,16 @@ function bindStage(){
 
 /* ---------- bảng thông tin ---------- */
 function render(){drawTree();drawPanel()}
-function select(id){sel=id;render()}
+let formDirty=false;
+function formValues(){const n=$('#f-name');if(!n)return null;return{name:n.value.trim(),g:$('#f-g').value,note:$('#f-note').value.trim()}}
+function commitForm(){if(!formDirty)return false;formDirty=false;const p=byId()[sel],v=formValues();if(!p||!v)return false;
+ if(p.name===v.name&&p.g===v.g&&(p.note||'')===v.note)return false;hist.push(JSON.stringify(D));Object.assign(p,v);changed();return true}
+function askSave(next){const p=byId()[sel],v=formValues();
+ if(!formDirty||!p||!v||(p.name===v.name&&p.g===v.g&&(p.note||'')===v.note)){formDirty=false;next();return}
+ const d=$('#dlg');d.innerHTML=`<h3>Bạn có muốn cập nhật không?</h3><p>Thông tin của <b>${esc(v.name||p.name||'người này')}</b> đã thay đổi nhưng chưa lưu.</p>
+<div class="acts"><button class="gold" id="as1">Cập nhật</button><button class="ghost" id="as2">Không lưu</button><button class="ghost" id="as3">Ở lại sửa tiếp</button></div>`;
+ d.showModal();$('#as1').onclick=()=>{d.close();commitForm();next()};$('#as2').onclick=()=>{d.close();formDirty=false;next()};$('#as3').onclick=()=>d.close()}
+function select(id){if(id===sel)return;askSave(()=>{sel=id;render()})}
 function names(ids,B){return ids.filter(i=>B[i]).map(i=>`<a data-go="${i}" tabindex="0">${esc(B[i].name||'(chưa đặt tên)')}</a>`).join(', ')||'—'}
 function drawPanel(){
  const B=byId(),p=B[sel],el=$('#panel'),ro=!S.canEdit;
@@ -490,23 +500,23 @@ ${!ro&&!D.people.length?'<div class="acts"><button id="first" class="gold">Thêm
 <form id="fm"><label for="f-name">Họ và tên</label><input id="f-name" value="${esc(p.name)}">
 <label id="gl">Giới tính</label><div class="gsel" role="group" aria-labelledby="gl"><button type="button" data-g="m" aria-pressed="${p.g!=='f'}">Nam</button><button type="button" data-g="f" aria-pressed="${p.g==='f'}">Nữ</button></div><input type="hidden" id="f-g" value="${p.g==='f'?'f':'m'}">
 <label for="f-note">Ghi chú (quê quán, ngày giỗ, nơi an táng…)</label><textarea id="f-note">${esc(p.note)}</textarea>
-<div class="acts"><button type="submit" class="gold">Cập nhật</button></div></form>
+<button type="submit" hidden></button></form>
 <div class="acts"><button class="ghost" data-a="child">+ Con</button><button class="ghost" data-a="spouse">+ ${p.g==='f'?'Chồng':'Vợ'}</button>
 ${(p.parents||[]).filter(i=>B[i]).length<2?'<button class="ghost" data-a="parent">+ Cha/Mẹ</button>':''}<button class="danger" data-a="del">Xoá</button></div>
 <p id="cf" class="empty"></p>${rel}`;
- const fm=$('#fm');if(fm)fm.onsubmit=e=>{e.preventDefault();hist.push(JSON.stringify(D));Object.assign(p,{name:$('#f-name').value.trim(),g:$('#f-g').value,note:$('#f-note').value.trim()});changed()};
- el.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{$('#f-g').value=b.dataset.g;el.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+ const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',()=>{formDirty=true})}
+ el.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{if($('#f-g').value!==b.dataset.g)formDirty=true;$('#f-g').value=b.dataset.g;el.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
  el.querySelectorAll('[data-go]').forEach(a=>{const f=()=>{select(a.dataset.go);center(a.dataset.go)};a.onclick=f;a.onkeydown=e=>{if(e.key==='Enter')f()}});
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,p,b));
 }
-function undoLast(){const h=hist.pop();if(!h)return;D=JSON.parse(h);if(sel&&!byId()[sel])sel=null;changed()}
-function removePerson(id){const p=byId()[id];if(!p)return;hist.push(JSON.stringify(D));D.people=D.people.filter(x=>x.id!==id);D.people.forEach(x=>{x.parents=(x.parents||[]).filter(i=>i!==id);x.spouses=(x.spouses||[]).filter(i=>i!==id)});if(sel===id)sel=null;changed();toast('Đã xoá '+(p.name||'một người'),undoLast)}
+function undoLast(){formDirty=false;const h=hist.pop();if(!h)return;D=JSON.parse(h);if(sel&&!byId()[sel])sel=null;changed()}
+function removePerson(id){commitForm();const p=byId()[id];if(!p)return;hist.push(JSON.stringify(D));D.people=D.people.filter(x=>x.id!==id);D.people.forEach(x=>{x.parents=(x.parents||[]).filter(i=>i!==id);x.spouses=(x.spouses||[]).filter(i=>i!==id)});if(sel===id)sel=null;changed();toast('Đã xoá '+(p.name||'một người'),undoLast)}
 function isDesc(a,b){/* a là con cháu của b? */const B=byId(),seen=new Set(),st=[a];while(st.length){const x=st.pop();if(x===b)return true;if(seen.has(x))continue;seen.add(x);(B[x]&&B[x].parents||[]).forEach(q=>st.push(q))}return false}
-function moveAsChild(id,t){const B=byId(),p=B[id],T=B[t];if(!p||!T)return;
+function moveAsChild(id,t){commitForm();const B=byId(),p=B[id],T=B[t];if(!p||!T)return;
  if(id===t||isDesc(t,id)){toast('Không thể: '+T.name+' là con cháu của '+p.name);return}
  hist.push(JSON.stringify(D));const sp=(T.spouses||[]).find(i=>B[i]);p.parents=sp?[t,sp]:[t];
  p.spouses=(p.spouses||[]);changed();center(id);toast('Đã chuyển '+p.name+' làm con của '+T.name,undoLast)}
-function makeSpouse(id,t){const B=byId(),p=B[id],T=B[t];if(!p||!T||id===t)return;
+function makeSpouse(id,t){commitForm();const B=byId(),p=B[id],T=B[t];if(!p||!T||id===t)return;
  if((p.spouses||[]).includes(t)){toast('Hai người đã là vợ chồng');return}
  if(isDesc(t,id)||isDesc(id,t)){toast('Không thể ghép vợ chồng giữa cha mẹ và con cháu');return}
  hist.push(JSON.stringify(D));(p.spouses=p.spouses||[]).push(t);(T.spouses=T.spouses||[]).push(id);
@@ -518,7 +528,7 @@ function dropMenu(id,t,x,y){const B=byId(),p=B[id],T=B[t],st=$('#stage');closeMe
  m.addEventListener('pointerdown',e=>e.stopPropagation());
  m.querySelectorAll('button').forEach(b=>b.onclick=()=>{closeMenu();if(b.dataset.k==='c')moveAsChild(id,t);if(b.dataset.k==='s')makeSpouse(id,t)})}
 function closeMenu(){const m=$('#dmenu');if(m)m.remove()}
-function act(a,p,btn){
+function act(a,p,btn){if(a!=='del'&&commitForm())p=byId()[p.id];
  const B=byId();
  if(a==='del'){if(btn.dataset.ok!=='1'){btn.dataset.ok='1';btn.textContent='Bấm lần nữa để xoá';$('#cf').textContent='Các mối quan hệ của người này cũng bị gỡ. Có thể hoàn tác.';return}
   removePerson(p.id);return}
