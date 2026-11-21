@@ -474,7 +474,7 @@ function bindStage(){
 /* ---------- bảng thông tin ---------- */
 function render(){drawTree();drawPanel()}
 let formDirty=false,formTimer=null,formHistFor=null;
-function formValues(){const n=$('#f-name');if(!n)return null;return{name:n.value.trim(),g:$('#f-g').value,note:$('#f-note').value.trim()}}
+function formValues(){const n=$('#f-name');if(!n)return null;return{name:capStr(n.value.normalize('NFC').trim().replace(/\s+/g,' ')),g:$('#f-g').value,note:$('#f-note').value.trim()}}
 /* tự lưu: cập nhật dữ liệu và cây, không vẽ lại bảng đang gõ */
 function commitForm(){clearTimeout(formTimer);if(!formDirty)return false;formDirty=false;const p=byId()[sel],v=formValues();if(!p||!v)return false;
  if(!v.name)v.name=p.name;
@@ -489,10 +489,13 @@ function commitForm(){clearTimeout(formTimer);if(!formDirty)return false;formDir
 function guessG(name){const w=String(name||'').normalize('NFC').trim().toLowerCase().split(/[\s.]+/).filter(Boolean).slice(0,-1);
  if(w.some(x=>x==='văn'||x==='van'||x==='v'))return'm';if(w.some(x=>x==='thị'||x==='thi'||x==='t'))return'f';return null}
 /* viết hoa chữ đầu mỗi từ, giữ nguyên vị trí con trỏ */
-function capName(inp){const v=inp.value,c=v.normalize('NFC').replace(/(^|[\s.(\-])(\p{Ll})/gu,(m,a,b)=>a+b.toLocaleUpperCase('vi'));
+const capStr=v=>String(v||'').replace(/(^|[\s.(\-])(\p{Ll})/gu,(m,a,b)=>a+b.toLocaleUpperCase('vi'));
+function capName(inp){const v=inp.value,c=capStr(v);
  if(c!==v&&c.length===v.length){const st=inp.selectionStart,en=inp.selectionEnd;inp.value=c;try{inp.setSelectionRange(st,en)}catch(_){}}}
 function showG(g){const h=$('#f-g');if(!h||!g)return;h.value=g;document.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.g===g))}
-function nameTyped(e){const inp=e.target;if(!e.isComposing)capName(inp);showG(guessG(inp.value))}
+function nameTyped(e){const inp=e.target;
+ if(!e.isComposing&&e.inputType&&e.inputType.startsWith('insert')){const pos=inp.selectionStart||0;if(inp.value.charAt(pos-1)===' ')capName(inp)}
+ showG(guessG(inp.value))}
 function formChanged(){formDirty=true;clearTimeout(formTimer);formTimer=setTimeout(commitForm,500)}
 function select(id){if(id===sel)return;commitForm();formHistFor=null;sel=id;render()}
 function names(ids,B){return ids.filter(i=>B[i]).map(i=>`<a data-go="${i}" tabindex="0">${esc(B[i].name||'(chưa đặt tên)')}</a>`).join(', ')||'—'}
@@ -516,7 +519,7 @@ ${!ro&&!D.people.length?'<div class="acts"><button id="first" class="gold">Thêm
 <div class="acts"><button class="ghost" data-a="child">+ Con</button><button class="ghost" data-a="spouse">+ ${p.g==='f'?'Chồng':'Vợ'}</button>
 ${(p.parents||[]).filter(i=>B[i]).length<2?'<button class="ghost" data-a="parent">+ Cha/Mẹ</button>':''}<button class="danger" data-a="del">Xoá</button></div>
 <p id="cf" class="empty"></p>${rel}`;
- const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',formChanged);const fn=$('#f-name');fn.addEventListener('input',nameTyped);fn.addEventListener('compositionend',e=>{capName(fn);showG(guessG(fn.value));formChanged()});fn.addEventListener('blur',()=>{capName(fn);commitForm()})}
+ const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',formChanged);const fn=$('#f-name');fn.addEventListener('input',nameTyped);fn.addEventListener('compositionend',()=>{showG(guessG(fn.value));formChanged()});fn.addEventListener('blur',()=>{capName(fn);commitForm()})}
  el.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{const ch=$('#f-g').value!==b.dataset.g;$('#f-g').value=b.dataset.g;el.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x===b));if(ch){formDirty=true;commitForm()}});
  el.querySelectorAll('[data-go]').forEach(a=>{const f=()=>{select(a.dataset.go);center(a.dataset.go)};a.onclick=f;a.onkeydown=e=>{if(e.key==='Enter')f()}});
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,p,b));
