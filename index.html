@@ -478,7 +478,7 @@ function formValues(){const n=$('#f-name');if(!n)return null;return{name:n.value
 /* tự lưu: cập nhật dữ liệu và cây, không vẽ lại bảng đang gõ */
 function commitForm(){clearTimeout(formTimer);if(!formDirty)return false;formDirty=false;const p=byId()[sel],v=formValues();if(!p||!v)return false;
  if(!v.name)v.name=p.name;
- if(v.name!==p.name){const gg=guessG(v.name);if(gg&&gg!==v.g){v.g=gg;$('#f-g').value=gg;document.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.g===gg))}}
+ {const gg=guessG(v.name);if(gg&&gg!==v.g){v.g=gg;showG(gg)}}
  if(p.name===v.name&&p.g===v.g&&(p.note||'')===v.note)return false;
  if(formHistFor!==sel){hist.push(JSON.stringify(D));formHistFor=sel}
  Object.assign(p,v);dirty=true;setPill('Chưa lưu…');drawTree();
@@ -486,8 +486,13 @@ function commitForm(){clearTimeout(formTimer);if(!formDirty)return false;formDir
  const sb2=$('#panel .sub');if(sb2)sb2.textContent=sb2.textContent.replace(/^(Nam|Nữ)/,p.g==='f'?'Nữ':'Nam');
  clearTimeout(saveTimer);saveTimer=setTimeout(save,600);return true}
 /* tên đệm Văn → nam, Thị → nữ (không xét chữ cuối là tên gọi) */
-function guessG(name){const w=String(name||'').normalize('NFC').trim().toLowerCase().split(/\s+/).slice(0,-1);
- if(w.includes('văn'))return'm';if(w.includes('thị'))return'f';return null}
+function guessG(name){const w=String(name||'').normalize('NFC').trim().toLowerCase().split(/[\s.]+/).filter(Boolean).slice(0,-1);
+ if(w.some(x=>x==='văn'||x==='van'||x==='v'))return'm';if(w.some(x=>x==='thị'||x==='thi'||x==='t'))return'f';return null}
+/* viết hoa chữ đầu mỗi từ, giữ nguyên vị trí con trỏ */
+function capName(inp){const v=inp.value,c=v.normalize('NFC').replace(/(^|[\s.(\-])(\p{Ll})/gu,(m,a,b)=>a+b.toLocaleUpperCase('vi'));
+ if(c!==v&&c.length===v.length){const st=inp.selectionStart,en=inp.selectionEnd;inp.value=c;try{inp.setSelectionRange(st,en)}catch(_){}}}
+function showG(g){const h=$('#f-g');if(!h||!g)return;h.value=g;document.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.g===g))}
+function nameTyped(e){const inp=e.target;if(!e.isComposing)capName(inp);showG(guessG(inp.value))}
 function formChanged(){formDirty=true;clearTimeout(formTimer);formTimer=setTimeout(commitForm,500)}
 function select(id){if(id===sel)return;commitForm();formHistFor=null;sel=id;render()}
 function names(ids,B){return ids.filter(i=>B[i]).map(i=>`<a data-go="${i}" tabindex="0">${esc(B[i].name||'(chưa đặt tên)')}</a>`).join(', ')||'—'}
@@ -504,14 +509,14 @@ ${!ro&&!D.people.length?'<div class="acts"><button id="first" class="gold">Thêm
  const rel=`<div class="rel"><p><b>Cha mẹ:</b> ${names(p.parents||[],B)}</p><p><b>${p.g==='f'?'Chồng':'Vợ'}:</b> ${names(p.spouses||[],B)}</p><p><b>Anh chị em:</b> ${names(sib,B)}</p><p><b>Con:</b> ${names(kids,B)}</p></div>`;
  if(ro){el.innerHTML=`<h2 class="${p.g==='f'?'f':'m'}">${esc(p.name||'(chưa đặt tên)')}</h2><p class="sub">${p.g==='f'?'Nữ':'Nam'} · Đời ${gen}</p>${p.note?`<p class="note">${esc(p.note)}</p>`:''}${rel}`}
  else el.innerHTML=`<h2 class="${p.g==='f'?'f':'m'}">${esc(p.name||'(chưa đặt tên)')}</h2><p class="sub">${p.g==='f'?'Nữ':'Nam'} · Đời ${gen}</p>
-<form id="fm"><label for="f-name">Họ và tên</label><input id="f-name" value="${esc(p.name)}">
+<form id="fm"><label for="f-name">Họ và tên</label><input id="f-name" value="${esc(p.name)}" placeholder="Nhập họ và tên" autocapitalize="words" autocomplete="off">
 <label id="gl">Giới tính</label><div class="gsel" role="group" aria-labelledby="gl"><button type="button" data-g="m" aria-pressed="${p.g!=='f'}">Nam</button><button type="button" data-g="f" aria-pressed="${p.g==='f'}">Nữ</button></div><input type="hidden" id="f-g" value="${p.g==='f'?'f':'m'}">
 <label for="f-note">Ghi chú (quê quán, ngày giỗ, nơi an táng…)</label><textarea id="f-note">${esc(p.note)}</textarea>
 <button type="submit" hidden></button></form>
 <div class="acts"><button class="ghost" data-a="child">+ Con</button><button class="ghost" data-a="spouse">+ ${p.g==='f'?'Chồng':'Vợ'}</button>
 ${(p.parents||[]).filter(i=>B[i]).length<2?'<button class="ghost" data-a="parent">+ Cha/Mẹ</button>':''}<button class="danger" data-a="del">Xoá</button></div>
 <p id="cf" class="empty"></p>${rel}`;
- const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',formChanged)}
+ const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',formChanged);const fn=$('#f-name');fn.addEventListener('input',nameTyped);fn.addEventListener('compositionend',e=>{capName(fn);showG(guessG(fn.value));formChanged()});fn.addEventListener('blur',()=>{capName(fn);commitForm()})}
  el.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{const ch=$('#f-g').value!==b.dataset.g;$('#f-g').value=b.dataset.g;el.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x===b));if(ch){formDirty=true;commitForm()}});
  el.querySelectorAll('[data-go]').forEach(a=>{const f=()=>{select(a.dataset.go);center(a.dataset.go)};a.onclick=f;a.onkeydown=e=>{if(e.key==='Enter')f()}});
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,p,b));
@@ -540,9 +545,9 @@ function act(a,p,btn){if(a!=='del'&&commitForm())p=byId()[p.id];
  if(a==='del'){if(btn.dataset.ok!=='1'){btn.dataset.ok='1';btn.textContent='Bấm lần nữa để xoá';$('#cf').textContent='Các mối quan hệ của người này cũng bị gỡ. Có thể hoàn tác.';return}
   removePerson(p.id);return}
  hist.push(JSON.stringify(D));const n={id:uid(),name:'',g:'m',b:'',d:'',note:'',parents:[],spouses:[]};
- if(a==='child'){n.name='Con mới';const sp=(p.spouses||[]).find(i=>B[i]);n.parents=sp?[p.id,sp]:[p.id]}
- if(a==='spouse'){n.g=p.g==='f'?'m':'f';n.name=p.g==='f'?'Chồng mới':'Vợ mới';n.spouses=[p.id];(p.spouses=p.spouses||[]).push(n.id)}
- if(a==='parent'){const ex=(p.parents||[]).filter(i=>B[i]);n.name=ex.length?'Mẹ mới':'Cha mới';n.g=ex.length&&B[ex[0]].g!=='f'?'f':'m';
+ if(a==='child'){const sp=(p.spouses||[]).find(i=>B[i]);n.parents=sp?[p.id,sp]:[p.id]}
+ if(a==='spouse'){n.g=p.g==='f'?'m':'f';n.spouses=[p.id];(p.spouses=p.spouses||[]).push(n.id)}
+ if(a==='parent'){const ex=(p.parents||[]).filter(i=>B[i]);n.g=ex.length&&B[ex[0]].g!=='f'?'f':'m';
   if(ex.length){n.spouses=[ex[0]];(B[ex[0]].spouses=B[ex[0]].spouses||[]).push(n.id);D.people.filter(c=>(c.parents||[]).includes(ex[0])&&c.parents.length<2).forEach(c=>c.parents.push(n.id))}
   else p.parents=[n.id]}
  D.people.push(n);sel=n.id;changed();center(n.id);setTimeout(()=>{const f=$('#f-name');if(f){f.focus();f.select()}},60);
