@@ -13,9 +13,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Be+Vietnam+Pro:wght@400;500;600&display=swap&subset=vietnamese" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <style>
-:root{color-scheme:light dark;--bg:light-dark(#faf7f2,#16100f);--ink:light-dark(#2a1a17,#f3e9e2);--mute:light-dark(#76625c,#b6a59e);--line:light-dark(#e6dcd3,#3a2b28);--panel:light-dark(#ffffff,#211816);--lac:#4a110d;--lac2:#5f1812;--gold:#d8a648;--ivory:#fff9ef;--he:#c08a2c;--she:#d46f86;--focus:#e7b85a;--ok:light-dark(#2f7d4f,#7fd39f);--err:light-dark(#b3261e,#ff9b8f)}
+:root{color-scheme:light dark;--bg:light-dark(#faf7f2,#16100f);--ink:light-dark(#2a1a17,#f3e9e2);--mute:light-dark(#76625c,#b6a59e);--line:light-dark(#e6dcd3,#3a2b28);--panel:light-dark(#ffffff,#211816);--lac:#4a110d;--lac2:#5f1812;--gold:#d8a648;--ivory:#fff9ef;--he:#b5832a;--she:#b4485e;--heink:#6e4a10;--sheink:#8a2639;--hebg:#f6ead2;--shebg:#f8e3e3;--focus:#e7b85a;--ok:light-dark(#2f7d4f,#7fd39f);--err:light-dark(#b3261e,#ff9b8f)}
 *{box-sizing:border-box;min-width:0}
 html,body{height:100%}
+html{-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Be Vietnam Pro",system-ui,sans-serif}
 body.tree{overflow:hidden}
 #app{min-height:100%;display:flex;flex-direction:column}
@@ -70,24 +71,29 @@ header .home svg{width:32px;height:32px}
 .tcard.new{border:2px dashed var(--gold);display:grid;place-items:center;font-weight:600;color:light-dark(#7a3a1a,#e6c995)}
 /* cây */
 main{flex:1;display:flex;min-height:0;position:relative}
-#stage{flex:1;position:relative;background:radial-gradient(120% 90% at 50% 0%,#6a1c14 0%,#3b0d0a 55%,#250807 100%);overflow:hidden;touch-action:none;cursor:grab}
+#stage{-webkit-user-select:none;user-select:none;flex:1;position:relative;background:radial-gradient(120% 90% at 50% 0%,#6a1c14 0%,#3b0d0a 55%,#250807 100%);overflow:hidden;touch-action:none;cursor:grab}
 #stage.drag{cursor:grabbing}
 #stage svg{position:absolute;inset:0;width:100%;height:100%}
 .zoom{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:6px}
 .zoom button{width:44px;min-height:44px;padding:0;font-size:20px;background:rgba(40,8,6,.85);border-color:var(--gold);color:var(--gold)}
 .hint{position:absolute;left:14px;bottom:14px;font-size:13px;color:#e6c995;background:rgba(30,6,4,.6);padding:6px 10px;border-radius:6px;max-width:60%}
 .u rect.card{fill:var(--ivory);stroke:var(--gold);stroke-width:2}
-.u.has rect.card{stroke:#fff;stroke-width:3;filter:drop-shadow(0 0 8px #f3c66d)}
 .u text.gn{font:500 11px "Be Vietnam Pro",sans-serif;fill:#a07a3a}
 .u line.dv{stroke:#eadfcd;stroke-width:1}
 .n rect.hit{fill:transparent}
-.n:hover rect.hit{fill:#f7eedd}
-.n.sel rect.hit{fill:#fbe3b0}
-.n.hit rect.hit{fill:#ffe9a8}
-.n text.nm{font:600 14px "Be Vietnam Pro",sans-serif;fill:#2a1a17}
-.n text.yr{font:400 12px "Be Vietnam Pro",sans-serif;fill:#7a645c}
-.n.dead text.nm{fill:#6a5a54}
-.n{cursor:pointer}
+.n.sel rect.hit{fill:none;stroke:var(--gold);stroke-width:1.5}
+.n.hit rect.hit{fill:#fff0c4}
+.n text.nm{font:600 14px "Be Vietnam Pro",sans-serif}
+.n.m text.nm{fill:var(--heink)}.n.f text.nm{fill:var(--sheink)}
+.n text.yr{font:400 12px "Be Vietnam Pro",sans-serif;fill:#8a7468}
+.n{cursor:pointer;outline:none}
+@media(hover:hover){.n:hover rect.hit{fill:#faf1e2}}
+.gsel{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gsel button{background:var(--bg);color:var(--mute);border:1px solid var(--line);min-height:44px;font-size:15px}
+.gsel button[data-g=m][aria-pressed=true]{background:var(--hebg);color:var(--heink);border-color:var(--he);font-weight:600}
+.gsel button[data-g=f][aria-pressed=true]{background:var(--shebg);color:var(--sheink);border-color:var(--she);font-weight:600}
+aside h2.m{color:light-dark(var(--heink),#e7c27a)}aside h2.f{color:light-dark(var(--sheink),#f0a3b3)}
+button:focus:not(:focus-visible){outline:none}
 .ln{stroke:var(--gold);stroke-width:1.6;fill:none}
 .cp{stroke:var(--gold);stroke-width:2.4}
 aside{width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:18px}
@@ -390,13 +396,12 @@ function drawTree(){
  layout();const B=byId(),q=query.trim().toLowerCase();
  $('#vp').innerHTML=links.join('')+units.map(u=>{
   const rows=u.disp.map((id,i)=>{const p=B[id];const hit=q&&(p.name||'').toLowerCase().includes(q);
-   const yrs=(p.b||p.d)?`${p.b||'?'} – ${p.d||''}`:'';
    const role=id!==u.blood?(p.g==='f'?'Vợ':'Chồng'):'';
-   const sub=[role,yrs,p.d?'đã mất':''].filter(Boolean).join(' · ');
-   return `${i?`<line class="dv" x1="12" x2="${NW-12}" y1="${HD+i*RH}" y2="${HD+i*RH}"/>`:''}<g class="n ${p.g==='f'?'f':'m'}${p.d?' dead':''}${id===sel?' sel':''}${hit?' hit':''}" data-id="${id}" transform="translate(0 ${HD+i*RH})">
+   const sub=role;
+   return `${i?`<line class="dv" x1="12" x2="${NW-12}" y1="${HD+i*RH}" y2="${HD+i*RH}"/>`:''}<g class="n ${p.g==='f'?'f':'m'}${id===sel?' sel':''}${hit?' hit':''}" data-id="${id}" transform="translate(0 ${HD+i*RH})">
 <rect class="hit" x="4" y="2" width="${NW-8}" height="${RH-4}" rx="6"/><rect x="8" y="8" width="4" height="${RH-16}" rx="2" fill="${p.g==='f'?'var(--she)':'var(--he)'}"/>
-<text class="nm" x="20" y="21">${esc(cut(p.name||'(chưa đặt tên)',24))}</text><text class="yr" x="20" y="38">${esc(sub)}</text></g>`}).join('');
-  return `<g class="u${u.disp.includes(sel)?' has':''}" transform="translate(${u.x} ${u.y})"><rect class="card" width="${NW}" height="${u.h}" rx="10"/><text class="gn" x="12" y="17">Đời ${u.g+1}</text>${rows}</g>`}).join('');
+<text class="nm" x="20" y="${sub?21:29}">${esc(cut(p.name||'(chưa đặt tên)',24))}</text>${sub?`<text class="yr" x="20" y="38">${sub}</text>`:''}</g>`}).join('');
+  return `<g class="u" transform="translate(${u.x} ${u.y})"><rect class="card" width="${NW}" height="${u.h}" rx="10"/><text class="gn" x="12" y="17">Đời ${u.g+1}</text>${rows}</g>`}).join('');
  const gens=units.length?Math.max(...units.map(u=>u.g))+1:0;
  $('#stat').textContent=`${D.people.length} thành viên · ${gens} đời${S.canEdit?'':' · chỉ xem'}`;
 }
@@ -443,18 +448,17 @@ ${!ro&&!D.people.length?'<div class="acts"><button id="first" class="gold">Thêm
  const sib=D.people.filter(c=>c.id!==p.id&&(c.parents||[]).some(x=>(p.parents||[]).includes(x))).map(c=>c.id);
  const gen=(nodes.find(n=>n.id===p.id)?.g??0)+1;
  const rel=`<div class="rel"><p><b>Cha mẹ:</b> ${names(p.parents||[],B)}</p><p><b>${p.g==='f'?'Chồng':'Vợ'}:</b> ${names(p.spouses||[],B)}</p><p><b>Anh chị em:</b> ${names(sib,B)}</p><p><b>Con:</b> ${names(kids,B)}</p></div>`;
- if(ro){el.innerHTML=`<h2>${esc(p.name||'(chưa đặt tên)')}</h2><p class="sub">${p.g==='f'?'Nữ':'Nam'} · Đời ${gen}${p.b?' · sinh '+esc(p.b):''}${p.d?' · mất '+esc(p.d):''}</p>${p.note?`<p class="note">${esc(p.note)}</p>`:''}${rel}`}
- else el.innerHTML=`<h2>${esc(p.name||'(chưa đặt tên)')}</h2><p class="sub">${p.g==='f'?'Nữ':'Nam'} · Đời ${gen}</p>
+ if(ro){el.innerHTML=`<h2 class="${p.g==='f'?'f':'m'}">${esc(p.name||'(chưa đặt tên)')}</h2><p class="sub">${p.g==='f'?'Nữ':'Nam'} · Đời ${gen}</p>${p.note?`<p class="note">${esc(p.note)}</p>`:''}${rel}`}
+ else el.innerHTML=`<h2 class="${p.g==='f'?'f':'m'}">${esc(p.name||'(chưa đặt tên)')}</h2><p class="sub">${p.g==='f'?'Nữ':'Nam'} · Đời ${gen}</p>
 <form id="fm"><label for="f-name">Họ và tên</label><input id="f-name" value="${esc(p.name)}">
-<label for="f-g">Giới tính</label><select id="f-g"><option value="m"${p.g!=='f'?' selected':''}>Nam</option><option value="f"${p.g==='f'?' selected':''}>Nữ</option></select>
-<div class="row"><div><label for="f-b">Năm sinh</label><input id="f-b" inputmode="numeric" value="${esc(p.b)}" placeholder="vd 1950"></div>
-<div><label for="f-d">Năm mất</label><input id="f-d" inputmode="numeric" value="${esc(p.d)}" placeholder="vd 2010"></div></div>
+<label id="gl">Giới tính</label><div class="gsel" role="group" aria-labelledby="gl"><button type="button" data-g="m" aria-pressed="${p.g!=='f'}">Nam</button><button type="button" data-g="f" aria-pressed="${p.g==='f'}">Nữ</button></div><input type="hidden" id="f-g" value="${p.g==='f'?'f':'m'}">
 <label for="f-note">Ghi chú (quê quán, ngày giỗ, nơi an táng…)</label><textarea id="f-note">${esc(p.note)}</textarea>
 <div class="acts"><button type="submit" class="gold">Cập nhật</button></div></form>
 <div class="acts"><button class="ghost" data-a="child">+ Con</button><button class="ghost" data-a="spouse">+ ${p.g==='f'?'Chồng':'Vợ'}</button>
 ${(p.parents||[]).filter(i=>B[i]).length<2?'<button class="ghost" data-a="parent">+ Cha/Mẹ</button>':''}<button class="danger" data-a="del">Xoá</button></div>
 <p id="cf" class="empty"></p>${rel}`;
- const fm=$('#fm');if(fm)fm.onsubmit=e=>{e.preventDefault();hist.push(JSON.stringify(D));Object.assign(p,{name:$('#f-name').value.trim(),g:$('#f-g').value,b:$('#f-b').value.trim(),d:$('#f-d').value.trim(),note:$('#f-note').value.trim()});changed()};
+ const fm=$('#fm');if(fm)fm.onsubmit=e=>{e.preventDefault();hist.push(JSON.stringify(D));Object.assign(p,{name:$('#f-name').value.trim(),g:$('#f-g').value,note:$('#f-note').value.trim()});changed()};
+ el.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{$('#f-g').value=b.dataset.g;el.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
  el.querySelectorAll('[data-go]').forEach(a=>{const f=()=>{select(a.dataset.go);center(a.dataset.go)};a.onclick=f;a.onkeydown=e=>{if(e.key==='Enter')f()}});
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,p,b));
 }
