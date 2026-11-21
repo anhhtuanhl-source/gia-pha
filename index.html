@@ -519,7 +519,12 @@ ${!ro&&!D.people.length?'<div class="acts"><button id="first" class="gold">Thêm
 <div class="acts"><button class="ghost" data-a="child">+ Con</button><button class="ghost" data-a="spouse">+ ${p.g==='f'?'Chồng':'Vợ'}</button>
 ${(p.parents||[]).filter(i=>B[i]).length<2?'<button class="ghost" data-a="parent">+ Cha/Mẹ</button>':''}<button class="danger" data-a="del">Xoá</button></div>
 <p id="cf" class="empty"></p>${rel}`;
- const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',formChanged);const fn=$('#f-name');fn.addEventListener('input',nameTyped);fn.addEventListener('compositionend',()=>{showG(guessG(fn.value));formChanged()});fn.addEventListener('blur',()=>{capName(fn);commitForm()})}
+ const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',formChanged);const fn=$('#f-name');fn.addEventListener('input',nameTyped);
+ /* chữ đầu mỗi từ: đổi ngay ký tự vừa gõ thành chữ hoa (sau dấu cách hoặc ở đầu ô) */
+ fn.addEventListener('beforeinput',e=>{if(e.isComposing||e.inputType!=='insertText'||!e.data||[...e.data].length!==1)return;
+  const up=e.data.toLocaleUpperCase('vi');if(up===e.data)return;const st=fn.selectionStart,en=fn.selectionEnd;
+  if(st>0&&!/[\s.(\-]/.test(fn.value.charAt(st-1)))return;
+  e.preventDefault();fn.setRangeText(up,st,en,'end');fn.dispatchEvent(new Event('input',{bubbles:true}))});fn.addEventListener('compositionend',()=>{showG(guessG(fn.value));formChanged()});fn.addEventListener('blur',()=>{capName(fn);commitForm()})}
  el.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{const ch=$('#f-g').value!==b.dataset.g;$('#f-g').value=b.dataset.g;el.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x===b));if(ch){formDirty=true;commitForm()}});
  el.querySelectorAll('[data-go]').forEach(a=>{const f=()=>{select(a.dataset.go);center(a.dataset.go)};a.onclick=f;a.onkeydown=e=>{if(e.key==='Enter')f()}});
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,p,b));
