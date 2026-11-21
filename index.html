@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gia Phả</title>
+<meta name="description" content="Lập và lưu giữ gia phả dòng họ, cùng người nhà sửa và chia sẻ.">
+<meta name="theme-color" content="#4a110d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Be+Vietnam+Pro:wght@400;500;600&display=swap&subset=vietnamese" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#faf7f2,#16100f);--ink:light-dark(#2a1a17,#f3e9e2);--mute:light-dark(#76625c,#b6a59e);--line:light-dark(#e6dcd3,#3a2b28);--panel:light-dark(#ffffff,#211816);--lac:#4a110d;--lac2:#5f1812;--gold:#d8a648;--ivory:#fff9ef;--he:#c08a2c;--she:#d46f86;--focus:#e7b85a;--ok:light-dark(#2f7d4f,#7fd39f);--err:light-dark(#b3261e,#ff9b8f)}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Be Vietnam Pro",system-ui,sans-serif}
+body.tree{overflow:hidden}
+#app{min-height:100%;display:flex;flex-direction:column}
+body.tree #app{height:100%}
+button,.btn{font:500 14px "Be Vietnam Pro",sans-serif;min-height:40px;padding:0 14px;border-radius:8px;border:1px solid #8a3a2c;cursor:pointer;background:var(--lac2);color:#fbeedd;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+button:hover,.btn:hover{filter:brightness(1.12)}
+button:disabled{opacity:.6;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button.gold{background:var(--gold);color:#3a1208;border-color:var(--gold)}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button.hghost{background:transparent;color:#fbeedd;border-color:#8a3a2c}
+button.danger{background:transparent;color:var(--err);border-color:currentColor}
+button.link{background:none;border:0;color:var(--mute);text-decoration:underline;padding:0 4px;min-height:36px}
+input,select,textarea{font:16px "Be Vietnam Pro",sans-serif;width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+textarea{min-height:80px;resize:vertical}
+label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+.err{min-height:20px;font-size:14px;color:var(--err);margin-top:8px}
+.ok{color:var(--ok)}
+h1,h2,h3{font-family:Lora,serif;font-weight:600;line-height:1.15;margin:0}
+/* đăng nhập */
+.auth{flex:1;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(120% 90% at 50% 0%,#6a1c14 0%,#3b0d0a 55%,#250807 100%)}
+.auth .card{width:min(400px,100%);background:var(--panel);border-radius:16px;padding:28px 24px;border:1px solid var(--gold);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.brand svg{width:48px;height:48px;flex:none}
+.brand b{font:600 24px Lora,serif}
+.tabs{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:6px}
+.tabs button{background:none;border:0;color:var(--mute);min-height:38px}
+.tabs button[aria-pressed=true]{background:var(--lac2);color:#fbeedd}
+/* thanh trên */
+header{background:var(--lac);color:#fbeedd;padding:10px max(3vw,14px);display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;border-bottom:2px solid var(--gold)}
+header .home{display:flex;align-items:center;gap:8px;color:#fbeedd;text-decoration:none;font:600 18px Lora,serif;background:none;border:0;padding:0}
+header .home svg{width:32px;height:32px}
+.ttl{display:flex;flex-direction:column;flex:1 1 240px}
+#clan{font:600 clamp(20px,2.6vw,28px)/1.15 Lora,serif;background:none;border:0;border-bottom:1px dashed transparent;color:#fff3df;padding:2px 0;border-radius:0}
+#clan:not([readonly]):hover,#clan:focus{border-bottom-color:var(--gold)}
+#stat{font-size:13px;color:#e6c995}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#search{min-height:40px;border-color:#8a3a2c;background:#3a0d0a;color:#fff;width:170px}
+#search::placeholder{color:#c9a58f}
+.pill{font-size:13px;color:#f3c66d;min-width:70px}
+.who{font-size:13px;color:#e6c995}
+/* danh sách */
+.wrap{width:min(1100px,100%);margin:0 auto;padding:28px max(4vw,16px) 48px}
+.wrap h1{font-size:clamp(28px,4vw,40px);margin-bottom:6px}
+.lead{color:var(--mute);margin:0 0 22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.tcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;text-align:left;display:block;width:100%;color:var(--ink);font:inherit;min-height:120px;white-space:normal;position:relative;overflow:hidden}
+.tcard::after{content:"";position:absolute;right:-30px;bottom:-30px;width:110px;height:110px;border-radius:50%;border:2px solid var(--gold);opacity:.35}
+.tcard h3{font-size:20px;margin-bottom:6px}
+.tcard p{margin:0;color:var(--mute);font-size:14px}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:light-dark(#f6ead6,#3a2a1a);color:light-dark(#7a5418,#e6c995);margin-top:10px}
+.tcard.new{border:2px dashed var(--gold);display:grid;place-items:center;font-weight:600;color:light-dark(#7a3a1a,#e6c995)}
+/* cây */
+main{flex:1;display:flex;min-height:0;position:relative}
+#stage{flex:1;position:relative;background:radial-gradient(120% 90% at 50% 0%,#6a1c14 0%,#3b0d0a 55%,#250807 100%);overflow:hidden;touch-action:none;cursor:grab}
+#stage.drag{cursor:grabbing}
+#stage svg{position:absolute;inset:0;width:100%;height:100%}
+.zoom{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:6px}
+.zoom button{width:44px;min-height:44px;padding:0;font-size:20px;background:rgba(40,8,6,.85);border-color:var(--gold);color:var(--gold)}
+.hint{position:absolute;left:14px;bottom:14px;font-size:13px;color:#e6c995;background:rgba(30,6,4,.6);padding:6px 10px;border-radius:6px;max-width:60%}
+.u rect.card{fill:var(--ivory);stroke:var(--gold);stroke-width:2}
+.u.has rect.card{stroke:#fff;stroke-width:3;filter:drop-shadow(0 0 8px #f3c66d)}
+.u text.gn{font:500 11px "Be Vietnam Pro",sans-serif;fill:#a07a3a}
+.u line.dv{stroke:#eadfcd;stroke-width:1}
+.n rect.hit{fill:transparent}
+.n:hover rect.hit{fill:#f7eedd}
+.n.sel rect.hit{fill:#fbe3b0}
+.n.hit rect.hit{fill:#ffe9a8}
+.n text.nm{font:600 14px "Be Vietnam Pro",sans-serif;fill:#2a1a17}
+.n text.yr{font:400 12px "Be Vietnam Pro",sans-serif;fill:#7a645c}
+.n.dead text.nm{fill:#6a5a54}
+.n{cursor:pointer}
+.ln{stroke:var(--gold);stroke-width:1.6;fill:none}
+.cp{stroke:var(--gold);stroke-width:2.4}
+aside{width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:18px}
+aside h2{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mute);font-size:13px;margin:0 0 14px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.rel{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);font-size:14px}
+.rel p{margin:6px 0}
+.rel a{color:inherit;text-decoration:underline;text-decoration-color:var(--gold);cursor:pointer}
+.empty{color:var(--mute);font-size:15px}
+.empty b{color:var(--ink)}
+.note{white-space:pre-wrap;font-size:15px}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);width:min(520px,92vw);padding:22px}
+dialog::backdrop{background:rgba(20,4,3,.6)}
+dialog h3{font-size:21px;margin-bottom:8px}
+dialog p{color:var(--mute);font-size:14px;margin:0 0 10px}
+.chk{display:flex;gap:10px;align-items:center;color:var(--ink);font-size:15px;margin:8px 0}
+.chk input{width:22px;height:22px}
+.ed{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px}
+.ed span{overflow-wrap:anywhere}
+.inline{display:flex;gap:8px}
+.inline input{flex:1}
+.center{flex:1;display:grid;place-items:center;padding:40px;color:var(--mute);text-align:center}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2a0d0a;color:#fbeedd;border:1px solid var(--gold);padding:10px 16px;border-radius:10px;font-size:15px;z-index:50;max-width:90vw}
+@media(max-width:760px){
+ main{flex-direction:column}
+ aside{width:auto;border-left:0;border-top:2px solid var(--gold);max-height:46vh}
+ #search{width:100%;flex:1 1 100%}
+ .tools{width:100%}
+ .hint{display:none}
+ .who{display:none}
+}
+@media(prefers-reduced-motion:no-preference){#vp{transition:transform .25s ease}#vp.nt{transition:none}}
+@media print{
+ header,aside,.zoom,.hint{display:none!important}
+ body.tree{overflow:visible}
+ #stage{background:#fff!important;height:100vh}
+ .ln,.cp{stroke:#8a6a2a}
+ @page{size:landscape;margin:8mm}
+}
+</style>
+</head>
+<body>
+<div id="app"><div class="center">Đang mở…</div></div>
+<dialog id="dlg"></dialog>
+<script>
+{
+/* ---------- cấu hình: cùng dự án Supabase với Sổ Chi Tiêu ---------- */
+const SUPABASE_URL="https://mzkevskppdetztypdzdt.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_axkJ2_McUZ_uFFHtGkLvLg_V3oBvuTy";
+const T_NAME="family_trees";
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LOGO=`<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#5f1812"/><rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="#d8a648" stroke-width="2"/><path d="M32 46V30M32 30l-12-8M32 30l12-8M20 22v-4M44 22v-4M32 30v-8" stroke="#d8a648" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="20" cy="15" r="5" fill="#fff9ef"/><circle cx="44" cy="15" r="5" fill="#fff9ef"/><circle cx="32" cy="19" r="5" fill="#fff9ef"/><rect x="22" y="45" width="20" height="8" rx="3" fill="#d8a648"/></svg>`;
+const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
+const S={screen:'loading',user:null,trees:[],tree:null,canEdit:false,isOwner:false,authTab:'login',authMsg:'',authEmail:''};
+let D=null,sel=null,hist=[],query='',dirty=false,saving=false,saveTimer=null;
+
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+function errText(e){const m=String(e&&e.message||e||'');
+ if(/invalid login/i.test(m))return'Email hoặc mật khẩu không đúng.';
+ if(/not confirmed/i.test(m))return'Email chưa được xác nhận. Hãy mở thư xác nhận trong hộp thư rồi đăng nhập lại.';
+ if(/already registered|already been registered/i.test(m))return'Email này đã có tài khoản. Hãy chọn Đăng nhập.';
+ if(/password.*(6|characters)|weak/i.test(m))return'Mật khẩu cần ít nhất 6 ký tự.';
+ if(/rate|too many/i.test(m))return'Bạn thử quá nhiều lần. Đợi vài phút rồi thử lại.';
+ if(/fetch|network|failed/i.test(m))return'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.';
+ if(/relation|does not exist|schema cache/i.test(m))return'Máy chủ chưa có bảng dữ liệu gia phả.';
+ return'Có lỗi: '+m}
+const param=k=>new URLSearchParams(location.search).get(k);
+function go(url){history.pushState(null,'',url);route()}
+
+/* ---------- đăng nhập ---------- */
+function viewLogin(){
+ const su=S.authTab==='signup';
+ document.body.className='';
+ $('#app').innerHTML=`<div class="auth"><div class="card">
+<div class="brand">${LOGO}<b>Gia Phả</b></div>
+<div class="tabs" role="group"><button data-tab="login" aria-pressed="${!su}">Đăng nhập</button><button data-tab="signup" aria-pressed="${su}">Tạo tài khoản</button></div>
+<p class="sub" style="margin-top:10px">Lập gia phả dòng họ, lưu trên mạng, mở được trên điện thoại và máy tính. Mời người nhà cùng sửa hoặc gửi link để xem.</p>
+<form id="af" novalidate>
+<label for="ae">Email</label><input id="ae" type="email" autocomplete="email" required value="${esc(S.authEmail)}">
+<label for="ap">Mật khẩu</label><input id="ap" type="password" autocomplete="${su?'new-password':'current-password'}" minlength="6" required placeholder="${su?'Ít nhất 6 ký tự':''}">
+<div class="err" id="aerr">${esc(S.authMsg)}</div>
+<button class="gold" type="submit" id="asub" style="width:100%;height:46px;margin-top:4px">${su?'Tạo tài khoản':'Đăng nhập'}</button>
+</form>
+${su?'':'<button class="link" id="forgot" style="margin-top:8px">Quên mật khẩu?</button>'}
+<p class="sub" style="margin:12px 0 0">Đã có tài khoản Sổ Chi Tiêu? Dùng luôn email và mật khẩu đó.</p>
+</div></div>`;
+ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.authTab=b.dataset.tab;S.authMsg='';S.authEmail=$('#ae').value;viewLogin()});
+ $('#af').onsubmit=async e=>{e.preventDefault();const email=$('#ae').value.trim(),pass=$('#ap').value,err=$('#aerr'),btn=$('#asub');
+  S.authEmail=email;err.className='err';
+  if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent='Nhập email hợp lệ.';return}
+  if(pass.length<6){err.textContent='Mật khẩu cần ít nhất 6 ký tự.';return}
+  btn.disabled=true;err.textContent='';
+  try{
+   if(su){const{data,error}=await sb.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;
+    if(data.session){S.user=data.session.user;route();return}
+    S.authTab='login';viewLogin();$('#aerr').className='err ok';$('#aerr').textContent='Đã tạo tài khoản. Hãy mở email xác nhận gửi tới '+email+', bấm vào đường link, rồi đăng nhập.'}
+   else{const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw error;S.user=data.user;route()}
+  }catch(ex){err.textContent=errText(ex);btn.disabled=false}};
+ const f=$('#forgot');if(f)f.onclick=async()=>{const email=$('#ae').value.trim(),err=$('#aerr');
+  if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent='Nhập email của bạn vào ô Email trước.';return}
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error){err.textContent=errText(error);return}err.className='err ok';err.textContent='Đã gửi email đặt lại mật khẩu tới '+email+'.'};
+}
+function newPassword(){const d=$('#dlg');d.innerHTML=`<h3>Đặt mật khẩu mới</h3><label for="np">Mật khẩu mới</label><input id="np" type="password" autocomplete="new-password"><div class="err" id="nperr"></div><div class="acts"><button class="gold" id="npok">Lưu mật khẩu</button></div>`;d.showModal();
+ $('#npok').onclick=async()=>{const v=$('#np').value;if(v.length<6){$('#nperr').textContent='Mật khẩu cần ít nhất 6 ký tự.';return}
+  const{error}=await sb.auth.updateUser({password:v});if(error){$('#nperr').textContent=errText(error);return}d.close();toast('Đã đổi mật khẩu')}}
+
+/* ---------- danh sách gia phả ---------- */
+function topbar(inner){return `<header><button class="home" id="home" aria-label="Về danh sách gia phả">${LOGO}<span>Gia Phả</span></button>${inner}</header>`}
+async function viewList(){
+ document.body.className='';
+ $('#app').innerHTML=topbar(`<span style="flex:1"></span><span class="who">${esc(S.user.email)}</span><button class="hghost" id="out">Đăng xuất</button>`)+`<div class="wrap"><div class="center">Đang tải…</div></div>`;
+ bindTop();
+ const{data,error}=await sb.from(T_NAME).select('id,name,owner,is_public,updated_at,data').order('updated_at',{ascending:false});
+ if(error){$('.wrap').innerHTML=`<div class="center"><p>${esc(errText(error))}</p><button id="rt">Thử lại</button></div>`;$('#rt').onclick=viewList;return}
+ S.trees=data||[];
+ const card=t=>{const n=(t.data&&t.data.people||[]).length;const mine=t.owner===S.user.id;
+  return `<button class="tcard" data-open="${t.id}"><h3>${esc(t.name)}</h3><p>${n} thành viên · sửa ${new Date(t.updated_at).toLocaleDateString('vi-VN')}</p><span class="tag">${mine?'Của bạn':'Được mời cùng sửa'}${t.is_public?' · đang chia sẻ link':''}</span></button>`};
+ $('.wrap').innerHTML=`<h1>Gia phả của bạn</h1><p class="lead">${S.trees.length?'Chọn một gia phả để xem và sửa.':'Bắt đầu bằng gia phả đầu tiên của dòng họ bạn.'}</p>
+<div class="grid">${S.trees.map(card).join('')}<button class="tcard new" id="newt">+ Tạo gia phả mới</button></div>`;
+ document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>go('?cay='+b.dataset.open));
+ $('#newt').onclick=createTree;
+}
+async function createTree(){
+ const b=$('#newt');b.disabled=true;
+ const data={people:[{id:uid(),name:'Thuỷ tổ',g:'m',b:'',d:'',note:'',parents:[],spouses:[]}]};
+ const{data:row,error}=await sb.from(T_NAME).insert({name:'Gia phả họ …',data,owner:S.user.id}).select('id').single();
+ if(error){b.disabled=false;toast(errText(error));return}
+ go('?cay='+row.id);
+}
+function bindTop(){const h=$('#home');if(h)h.onclick=()=>{if(!S.user){go('./');return}go('./')};const o=$('#out');if(o)o.onclick=async()=>{await flushNow();await sb.auth.signOut();S.user=null;go('./')}}
+
+/* ---------- mở một gia phả ---------- */
+async function openTree(id){
+ $('#app').innerHTML='<div class="center">Đang tải gia phả…</div>';
+ const{data,error}=await sb.from(T_NAME).select('*').eq('id',id).maybeSingle();
+ if(error||!data){document.body.className='';$('#app').innerHTML=(S.user?topbar('<span style="flex:1"></span>'):'')+`<div class="center"><div><h2 style="margin-bottom:8px">Không mở được gia phả này</h2><p>${error?esc(errText(error)):'Có thể link đã bị tắt chia sẻ, hoặc bạn chưa được mời.'}</p>${S.user?'<button id="back">Về danh sách</button>':'<button id="li" class="gold">Đăng nhập</button>'}</div></div>`;
+  bindTop();const bk=$('#back');if(bk)bk.onclick=()=>go('./');const li=$('#li');if(li)li.onclick=()=>{S.screen='login';viewLogin()};return}
+ S.tree=data;D=data.data&&Array.isArray(data.data.people)?data.data:{people:[]};
+ const email=(S.user&&S.user.email||'').toLowerCase();
+ S.isOwner=!!S.user&&data.owner===S.user.id;
+ S.canEdit=S.isOwner||(!!email&&(data.editors||[]).includes(email));
+ sel=null;hist=[];query='';dirty=false;
+ viewTree();
+}
+function viewTree(){
+ document.body.className='tree';
+ const ro=!S.canEdit;
+ $('#app').innerHTML=topbar(`<div class="ttl"><input id="clan" aria-label="Tên gia phả" value="${esc(S.tree.name)}"${ro?' readonly':''}><span id="stat"></span></div>
+<div class="tools"><input id="search" type="search" placeholder="Tìm tên…" aria-label="Tìm thành viên">
+${ro?'':'<button class="hghost" id="undo">Hoàn tác</button>'}
+${S.isOwner?'<button class="gold" id="share">Chia sẻ</button>':''}
+<button class="hghost" id="more">Thêm…</button>
+${ro?(S.user?'':'<button class="gold" id="li">Đăng nhập</button>'):'<span class="pill" id="pill"></span>'}</div>`)+
+`<main><div id="stage"><svg id="svg" aria-label="Cây gia phả"><g id="vp"></g></svg>
+<div class="hint">Kéo để di chuyển · cuộn hoặc chụm hai ngón để phóng to · bấm vào một người để ${ro?'xem':'sửa'}</div>
+<div class="zoom"><button id="zin" aria-label="Phóng to">+</button><button id="zout" aria-label="Thu nhỏ">−</button><button id="zfit" aria-label="Vừa màn hình" style="font-size:15px">⤢</button></div></div>
+<aside id="panel"></aside></main>`;
+ bindTop();bindStage();
+ const li=$('#li');if(li)li.onclick=()=>{S.screen='login';viewLogin()};
+ $('#clan').onchange=e=>{if(ro)return;S.tree.name=e.target.value.trim()||'Gia phả';changed()};
+ $('#search').oninput=e=>{query=e.target.value;drawTree();const q=query.trim().toLowerCase();if(!q)return;const B=byId();const n=nodes.find(n=>(B[n.id].name||'').toLowerCase().includes(q));if(n)center(n.id)};
+ const u=$('#undo');if(u)u.onclick=()=>{const h=hist.pop();if(!h){toast('Không còn gì để hoàn tác');return}D=JSON.parse(h);if(sel&&!byId()[sel])sel=null;changed()};
+ const sh=$('#share');if(sh)sh.onclick=shareDlg;
+ $('#more').onclick=moreDlg;
+ render();requestAnimationFrame(()=>fit());
+}
+
+/* ---------- lưu lên máy chủ ---------- */
+function setPill(t){const p=$('#pill');if(p)p.textContent=t}
+function changed(){dirty=true;setPill('Chưa lưu…');render();clearTimeout(saveTimer);saveTimer=setTimeout(save,900)}
+async function save(force){
+ if(!dirty||saving||!S.canEdit||!S.tree)return;
+ saving=true;setPill('Đang lưu…');
+ const snap=JSON.stringify(D),name=S.tree.name;
+ let q=sb.from(T_NAME).update({name,data:D}).eq('id',S.tree.id);
+ if(!force)q=q.eq('updated_at',S.tree.updated_at);
+ const{data,error}=await q.select('updated_at');
+ saving=false;
+ if(error){setPill('Chưa lưu được');clearTimeout(saveTimer);saveTimer=setTimeout(save,15000);toast(errText(error));return}
+ if(!data||!data.length){setPill('Có thay đổi khác');conflictDlg();return}
+ S.tree.updated_at=data[0].updated_at;
+ if(JSON.stringify(D)===snap&&S.tree.name===name){dirty=false;setPill('Đã lưu')}else save();
+}
+async function flushNow(){clearTimeout(saveTimer);if(dirty)await save()}
+function conflictDlg(){const d=$('#dlg');d.innerHTML=`<h3>Có người vừa sửa gia phả này</h3><p>Trong lúc bạn sửa, một người khác cũng đã lưu thay đổi. Bạn muốn làm gì?</p>
+<div class="acts"><button class="gold" id="c1">Tải bản mới nhất</button><button class="ghost" id="c2">Giữ bản của tôi, ghi đè</button></div><p style="margin-top:10px">Tải bản mới sẽ bỏ những thay đổi bạn chưa lưu.</p>`;d.showModal();
+ $('#c1').onclick=()=>{d.close();dirty=false;openTree(S.tree.id)};
+ $('#c2').onclick=()=>{d.close();save(true)}}
+addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushNow()});
+
+/* ---------- chia sẻ ---------- */
+function shareDlg(){
+ const t=S.tree,link=location.origin+location.pathname+'?cay='+t.id,d=$('#dlg');
+ d.innerHTML=`<h3>Chia sẻ gia phả</h3>
+<label class="chk"><input type="checkbox" id="pub"${t.is_public?' checked':''}> Ai có link đều xem được (không cần tài khoản)</label>
+<div class="inline" id="lrow" style="${t.is_public?'':'display:none'}"><input id="lnk" readonly value="${esc(link)}"><button class="gold" id="cp">Sao chép</button></div>
+<h3 style="font-size:17px;margin-top:20px">Người cùng sửa</h3>
+<p>Nhập email người nhà. Họ tạo tài khoản bằng đúng email đó là thấy gia phả này trong danh sách và sửa được.</p>
+<div class="inline"><input id="em" type="email" placeholder="email@vidu.com" aria-label="Email người cùng sửa"><button id="add">Mời</button></div>
+<div id="eds"></div><div class="err" id="serr"></div>
+<div class="acts"><button class="ghost" id="cl">Đóng</button></div>`;
+ d.showModal();
+ const drawEds=()=>{$('#eds').innerHTML=(t.editors||[]).map(e=>`<div class="ed"><span>${esc(e)}</span><button class="danger" data-rm="${esc(e)}" style="min-height:34px">Bỏ</button></div>`).join('')||'<p style="margin-top:8px">Chưa mời ai.</p>';
+  d.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>upd({editors:t.editors.filter(x=>x!==b.dataset.rm)}))};
+ const upd=async patch=>{$('#serr').textContent='';const{data,error}=await sb.from(T_NAME).update(patch).eq('id',t.id).select('is_public,editors,updated_at').single();
+  if(error){$('#serr').textContent=errText(error);return false}Object.assign(t,data);drawEds();$('#lrow').style.display=t.is_public?'':'none';$('#pub').checked=t.is_public;return true};
+ drawEds();
+ $('#pub').onchange=e=>upd({is_public:e.target.checked});
+ $('#add').onclick=async()=>{const v=$('#em').value.trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(v)){$('#serr').textContent='Nhập email hợp lệ.';return}
+  if(v===S.user.email.toLowerCase()){$('#serr').textContent='Đây là email của bạn.';return}
+  if(await upd({editors:[...new Set([...(t.editors||[]),v])]}))$('#em').value=''};
+ $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(link);toast('Đã sao chép link')}catch(e){$('#lnk').select()}};
+ $('#cl').onclick=()=>d.close();
+}
+/* ---------- thêm: in, xuất, nhập, xoá ---------- */
+function moreDlg(){
+ const d=$('#dlg');
+ d.innerHTML=`<h3>Thêm</h3>
+<div class="acts" style="flex-direction:column;align-items:stretch">
+<button class="ghost" id="pr">In / lưu thành PDF</button>
+<button class="ghost" id="ex">Tải tệp sao lưu (.json)</button>
+${S.canEdit?'<label class="btn" style="margin:0;color:#fbeedd">Nạp từ tệp sao lưu<input id="imf" type="file" accept=".json,application/json" hidden></label>':''}
+${S.isOwner?'<button class="danger" id="del">Xoá gia phả này</button>':''}
+<button class="ghost" id="cl">Đóng</button></div><div class="err" id="merr"></div>`;
+ d.showModal();
+ $('#cl').onclick=()=>d.close();
+ $('#pr').onclick=()=>{d.close();fit(true);setTimeout(()=>print(),350)};
+ $('#ex').onclick=()=>{const blob=new Blob([JSON.stringify({app:'gia-pha',version:1,name:S.tree.name,exportedAt:new Date().toISOString(),people:D.people},null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(S.tree.name||'gia-pha').replace(/[^\p{L}\p{N}]+/gu,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+ const f=$('#imf');if(f)f.onchange=async e=>{const file=e.target.files[0];if(!file)return;
+  try{const j=JSON.parse(await file.text());if(!Array.isArray(j.people))throw 0;hist.push(JSON.stringify(D));D={people:j.people};if(j.name)S.tree.name=j.name;sel=null;d.close();$('#clan').value=S.tree.name;changed();fit();toast('Đã nạp '+j.people.length+' thành viên')}
+  catch(x){$('#merr').textContent='Tệp không đúng định dạng sao lưu của Gia Phả.'}};
+ const del=$('#del');if(del)del.onclick=async()=>{if(del.dataset.ok!=='1'){del.dataset.ok='1';del.textContent='Bấm lần nữa để xoá vĩnh viễn';$('#merr').textContent='Không khôi phục được. Nên tải tệp sao lưu trước.';return}
+  const{error}=await sb.from(T_NAME).delete().eq('id',S.tree.id);if(error){$('#merr').textContent=errText(error);return}dirty=false;d.close();toast('Đã xoá gia phả');go('./')};
+}
+
+/* ---------- bố cục cây ---------- */
+const byId=()=>Object.fromEntries(D.people.map(p=>[p.id,p]));
+function uid(){return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+const NW=210,RH=48,HD=24,HG=26,VG=60;
+let nodes=[],links=[],units=[],bounds={x:0,y:0,w:1,h:1};
+function layout(){
+ const B=byId(),P=D.people,placed=new Set();
+ const hasPar=p=>(p.parents||[]).some(i=>B[i]);
+ const yr=p=>parseInt(p.b)||9999;
+ nodes=[];links=[];units=[];
+ function mk(id){
+  if(placed.has(id))return null;placed.add(id);
+  const sp=(B[id].spouses||[]).filter(s=>B[s]&&!placed.has(s)&&!hasPar(B[s]));
+  sp.forEach(s=>placed.add(s));
+  const mem=[id,...sp];
+  /* chồng ở trên, vợ ở dưới */
+  const disp=[...mem].sort((a,b)=>(B[a].g==='f')-(B[b].g==='f'));
+  const kids=P.filter(c=>(c.parents||[]).some(x=>mem.includes(x))).sort((a,b)=>yr(a)-yr(b));
+  const ch=kids.map(k=>mk(k.id)).filter(Boolean);
+  const cw=ch.reduce((a,c)=>a+c.w,0)+Math.max(0,ch.length-1)*HG;
+  return{blood:id,disp,ch,cw,w:Math.max(NW,cw),h:HD+RH*mem.length+4};
+ }
+ function place(u,x,g){
+  u.x=x+(u.w-NW)/2;u.g=g;units.push(u);
+  let cx=x+(u.w-u.cw)/2;
+  u.ch.forEach(c=>{place(c,cx,g+1);cx+=c.w+HG});
+ }
+ const roots=P.filter(p=>!hasPar(p)&&!(p.spouses||[]).some(s=>B[s]&&hasPar(B[s])));
+ let x=0;
+ const add=id=>{const u=mk(id);if(u){place(u,x,0);x+=u.w+60}};
+ roots.forEach(p=>add(p.id));P.forEach(p=>add(p.id));
+ /* chiều cao từng đời theo ô cao nhất */
+ const gh=[],gy=[0];
+ units.forEach(u=>gh[u.g]=Math.max(gh[u.g]||0,u.h));
+ for(let g=1;g<gh.length;g++)gy[g]=gy[g-1]+gh[g-1]+VG;
+ units.forEach(u=>{
+  u.y=gy[u.g];
+  u.disp.forEach((id,i)=>nodes.push({id,x:u.x,y:u.y+HD+i*RH,g:u.g}));
+  if(!u.ch.length)return;
+  const px=u.x+NW/2,my=u.y+gh[u.g]+VG/2,ty=gy[u.g+1],tops=u.ch.map(c=>c.x+NW/2);
+  links.push(`<path class="ln" d="M${px} ${u.y+u.h}V${my}"/>`);
+  links.push(`<path class="ln" d="M${Math.min(px,...tops)} ${my}H${Math.max(px,...tops)}"/>`);
+  tops.forEach(t=>links.push(`<path class="ln" d="M${t} ${my}V${ty}"/>`));
+ });
+ if(units.length){const xs=units.map(u=>u.x),ys=units.map(u=>u.y),ye=units.map(u=>u.y+u.h);
+  bounds={x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs)+NW,h:Math.max(...ye)-Math.min(...ys)}}
+ else bounds={x:0,y:0,w:1,h:1};
+}
+const cut=(s,n)=>s.length>n?s.slice(0,n-1)+'…':s;
+function drawTree(){
+ layout();const B=byId(),q=query.trim().toLowerCase();
+ $('#vp').innerHTML=links.join('')+units.map(u=>{
+  const rows=u.disp.map((id,i)=>{const p=B[id];const hit=q&&(p.name||'').toLowerCase().includes(q);
+   const yrs=(p.b||p.d)?`${p.b||'?'} – ${p.d||''}`:'';
+   const role=id!==u.blood?(p.g==='f'?'Vợ':'Chồng'):'';
+   const sub=[role,yrs,p.d?'đã mất':''].filter(Boolean).join(' · ');
+   return `${i?`<line class="dv" x1="12" x2="${NW-12}" y1="${HD+i*RH}" y2="${HD+i*RH}"/>`:''}<g class="n ${p.g==='f'?'f':'m'}${p.d?' dead':''}${id===sel?' sel':''}${hit?' hit':''}" data-id="${id}" transform="translate(0 ${HD+i*RH})">
+<rect class="hit" x="4" y="2" width="${NW-8}" height="${RH-4}" rx="6"/><rect x="8" y="8" width="4" height="${RH-16}" rx="2" fill="${p.g==='f'?'var(--she)':'var(--he)'}"/>
+<text class="nm" x="20" y="21">${esc(cut(p.name||'(chưa đặt tên)',24))}</text><text class="yr" x="20" y="38">${esc(sub)}</text></g>`}).join('');
+  return `<g class="u${u.disp.includes(sel)?' has':''}" transform="translate(${u.x} ${u.y})"><rect class="card" width="${NW}" height="${u.h}" rx="10"/><text class="gn" x="12" y="17">Đời ${u.g+1}</text>${rows}</g>`}).join('');
+ const gens=units.length?Math.max(...units.map(u=>u.g))+1:0;
+ $('#stat').textContent=`${D.people.length} thành viên · ${gens} đời${S.canEdit?'':' · chỉ xem'}`;
+}
+
+/* ---------- di chuyển, thu phóng ---------- */
+let T={x:40,y:40,k:1};
+function apply(anim){const vp=$('#vp');vp.classList.toggle('nt',!anim);vp.style.transform=`translate(${T.x}px,${T.y}px) scale(${T.k})`}
+function fit(all){const st=document.getElementById('stage');if(!st)return;const W=st.clientWidth,H=st.clientHeight,pad=40;
+ let k=Math.min(1.2,(W-pad*2)/bounds.w,(H-pad*2)/bounds.h);
+ if(!all&&k<.55&&nodes.length){k=.65;T={k,x:W/2-(nodes[0].x+NW/2)*k,y:pad-bounds.y*k};apply(true);return}
+ k=Math.max(.06,k);T={k,x:(W-bounds.w*k)/2-bounds.x*k,y:Math.max(pad,(H-bounds.h*k)/2)-bounds.y*k};apply(true)}
+function zoomAt(f,cx,cy,anim){const k=Math.min(2.5,Math.max(.06,T.k*f));f=k/T.k;T.x=cx-(cx-T.x)*f;T.y=cy-(cy-T.y)*f;T.k=k;apply(anim)}
+function center(id){const st=$('#stage'),n=nodes.find(n=>n.id===id);if(!n||!st)return;T.x=st.clientWidth/2-(n.x+NW/2)*T.k;T.y=st.clientHeight/2-(n.y+RH/2)*T.k;apply(true)}
+function bindStage(){
+ const stage=$('#stage'),pts=new Map();let moved=0,pinch=0;
+ stage.addEventListener('pointerdown',e=>{if(e.target.closest('.zoom'))return;stage.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=0;stage.classList.add('drag');
+  if(pts.size===2){const[a,b]=[...pts.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y)}});
+ stage.addEventListener('pointermove',e=>{const p=pts.get(e.pointerId);if(!p)return;
+  if(pts.size===1){T.x+=e.clientX-p.x;T.y+=e.clientY-p.y;moved+=Math.abs(e.clientX-p.x)+Math.abs(e.clientY-p.y);apply(false)}
+  p.x=e.clientX;p.y=e.clientY;
+  if(pts.size===2){const[a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y),r=stage.getBoundingClientRect();
+   if(pinch)zoomAt(d/pinch,(a.x+b.x)/2-r.left,(a.y+b.y)/2-r.top,false);pinch=d;moved=99}});
+ const up=e=>{const had=pts.has(e.pointerId);pts.delete(e.pointerId);if(pts.size<2)pinch=0;if(!pts.size)stage.classList.remove('drag');
+  if(had&&moved<6&&e.type==='pointerup'){const g=document.elementFromPoint(e.clientX,e.clientY)?.closest('.n');select(g?g.dataset.id:null)}};
+ stage.addEventListener('pointerup',up);stage.addEventListener('pointercancel',up);
+ stage.addEventListener('wheel',e=>{e.preventDefault();const r=stage.getBoundingClientRect();zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX-r.left,e.clientY-r.top,false)},{passive:false});
+ $('#zin').onclick=()=>zoomAt(1.25,stage.clientWidth/2,stage.clientHeight/2,true);
+ $('#zout').onclick=()=>zoomAt(.8,stage.clientWidth/2,stage.clientHeight/2,true);
+ $('#zfit').onclick=()=>fit(true);
+}
+
+/* ---------- bảng thông tin ---------- */
+function render(){drawTree();drawPanel()}
+function select(id){sel=id;render()}
+function names(ids,B){return ids.filter(i=>B[i]).map(i=>`<a data-go="${i}" tabindex="0">${esc(B[i].name||'(chưa đặt tên)')}</a>`).join(', ')||'—'}
+function drawPanel(){
+ const B=byId(),p=B[sel],el=$('#panel'),ro=!S.canEdit;
+ if(!p){el.innerHTML=`<h2>${esc(S.tree.name)}</h2><p class="sub">${ro?'Bạn đang xem gia phả.':'Mọi thay đổi tự lưu lên mạng.'}</p>
+<p class="empty">Bấm vào <b>một người trên cây</b> để ${ro?'xem thông tin':'sửa thông tin hoặc thêm con, vợ/chồng, cha/mẹ'}.</p>
+${S.isOwner?'<p class="empty">Bấm <b>Chia sẻ</b> để mời người nhà cùng sửa hoặc gửi link cho người khác xem.</p>':''}
+${!ro&&!D.people.length?'<div class="acts"><button id="first" class="gold">Thêm người đầu tiên</button></div>':''}`;
+  const f=$('#first');if(f)f.onclick=()=>{hist.push(JSON.stringify(D));const n={id:uid(),name:'Thuỷ tổ',g:'m',b:'',d:'',note:'',parents:[],spouses:[]};D.people.push(n);sel=n.id;changed();fit()};return}
+ const kids=D.people.filter(c=>(c.parents||[]).includes(p.id)).map(c=>c.id);
+ const sib=D.people.filter(c=>c.id!==p.id&&(c.parents||[]).some(x=>(p.parents||[]).includes(x))).map(c=>c.id);
+ const gen=(nodes.find(n=>n.id===p.id)?.g??0)+1;
+ const rel=`<div class="rel"><p><b>Cha mẹ:</b> ${names(p.parents||[],B)}</p><p><b>${p.g==='f'?'Chồng':'Vợ'}:</b> ${names(p.spouses||[],B)}</p><p><b>Anh chị em:</b> ${names(sib,B)}</p><p><b>Con:</b> ${names(kids,B)}</p></div>`;
+ if(ro){el.innerHTML=`<h2>${esc(p.name||'(chưa đặt tên)')}</h2><p class="sub">${p.g==='f'?'Nữ':'Nam'} · Đời ${gen}${p.b?' · sinh '+esc(p.b):''}${p.d?' · mất '+esc(p.d):''}</p>${p.note?`<p class="note">${esc(p.note)}</p>`:''}${rel}`}
+ else el.innerHTML=`<h2>${esc(p.name||'(chưa đặt tên)')}</h2><p class="sub">${p.g==='f'?'Nữ':'Nam'} · Đời ${gen}</p>
+<form id="fm"><label for="f-name">Họ và tên</label><input id="f-name" value="${esc(p.name)}">
+<label for="f-g">Giới tính</label><select id="f-g"><option value="m"${p.g!=='f'?' selected':''}>Nam</option><option value="f"${p.g==='f'?' selected':''}>Nữ</option></select>
+<div class="row"><div><label for="f-b">Năm sinh</label><input id="f-b" inputmode="numeric" value="${esc(p.b)}" placeholder="vd 1950"></div>
+<div><label for="f-d">Năm mất</label><input id="f-d" inputmode="numeric" value="${esc(p.d)}" placeholder="vd 2010"></div></div>
+<label for="f-note">Ghi chú (quê quán, ngày giỗ, nơi an táng…)</label><textarea id="f-note">${esc(p.note)}</textarea>
+<div class="acts"><button type="submit" class="gold">Cập nhật</button></div></form>
+<div class="acts"><button class="ghost" data-a="child">+ Con</button><button class="ghost" data-a="spouse">+ ${p.g==='f'?'Chồng':'Vợ'}</button>
+${(p.parents||[]).filter(i=>B[i]).length<2?'<button class="ghost" data-a="parent">+ Cha/Mẹ</button>':''}<button class="danger" data-a="del">Xoá</button></div>
+<p id="cf" class="empty"></p>${rel}`;
+ const fm=$('#fm');if(fm)fm.onsubmit=e=>{e.preventDefault();hist.push(JSON.stringify(D));Object.assign(p,{name:$('#f-name').value.trim(),g:$('#f-g').value,b:$('#f-b').value.trim(),d:$('#f-d').value.trim(),note:$('#f-note').value.trim()});changed()};
+ el.querySelectorAll('[data-go]').forEach(a=>{const f=()=>{select(a.dataset.go);center(a.dataset.go)};a.onclick=f;a.onkeydown=e=>{if(e.key==='Enter')f()}});
+ el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,p,b));
+}
+function act(a,p,btn){
+ const B=byId();
+ if(a==='del'){if(btn.dataset.ok!=='1'){btn.dataset.ok='1';btn.textContent='Bấm lần nữa để xoá';$('#cf').textContent='Các mối quan hệ của người này cũng bị gỡ. Có thể hoàn tác.';return}
+  hist.push(JSON.stringify(D));D.people=D.people.filter(x=>x.id!==p.id);D.people.forEach(x=>{x.parents=(x.parents||[]).filter(i=>i!==p.id);x.spouses=(x.spouses||[]).filter(i=>i!==p.id)});sel=null;changed();return}
+ hist.push(JSON.stringify(D));const n={id:uid(),name:'',g:'m',b:'',d:'',note:'',parents:[],spouses:[]};
+ if(a==='child'){n.name='Con mới';const sp=(p.spouses||[]).find(i=>B[i]);n.parents=sp?[p.id,sp]:[p.id]}
+ if(a==='spouse'){n.g=p.g==='f'?'m':'f';n.name=p.g==='f'?'Chồng mới':'Vợ mới';n.spouses=[p.id];(p.spouses=p.spouses||[]).push(n.id)}
+ if(a==='parent'){const ex=(p.parents||[]).filter(i=>B[i]);n.name=ex.length?'Mẹ mới':'Cha mới';n.g=ex.length&&B[ex[0]].g!=='f'?'f':'m';
+  if(ex.length){n.spouses=[ex[0]];(B[ex[0]].spouses=B[ex[0]].spouses||[]).push(n.id);D.people.filter(c=>(c.parents||[]).includes(ex[0])&&c.parents.length<2).forEach(c=>c.parents.push(n.id))}
+  else p.parents=[n.id]}
+ D.people.push(n);sel=n.id;changed();center(n.id);setTimeout(()=>{const f=$('#f-name');if(f){f.focus();f.select()}},60);
+}
+
+/* ---------- điều hướng ---------- */
+async function route(){
+ if(!sb){$('#app').innerHTML='<div class="center">Không tải được thư viện kết nối. Kiểm tra mạng rồi tải lại trang.</div>';return}
+ await flushNow();
+ const id=param('cay');
+ if(id){openTree(id);return}
+ if(!S.user){viewLogin();return}
+ viewList();
+}
+addEventListener('popstate',route);
+(async()=>{
+ if(!sb){route();return}
+ sb.auth.onAuthStateChange((ev,session)=>{S.user=session?session.user:null;if(ev==='PASSWORD_RECOVERY')setTimeout(newPassword,300)});
+ try{S.user=(await sb.auth.getSession()).data.session?.user||null}catch(e){}
+ route();
+})();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
