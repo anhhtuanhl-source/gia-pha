@@ -290,7 +290,7 @@ ${ro?'':'<span class="pill" id="pill"></span>'}</div>`)+
 
 /* ---------- lưu lên máy chủ ---------- */
 function setPill(t){const p=$('#pill');if(p)p.textContent=t}
-function changed(){formDirty=false;dirty=true;setPill('Chưa lưu…');render();clearTimeout(saveTimer);saveTimer=setTimeout(save,900)}
+function changed(){formDirty=false;formHistFor=null;dirty=true;setPill('Chưa lưu…');render();clearTimeout(saveTimer);saveTimer=setTimeout(save,900)}
 async function save(force){
  if(!dirty||saving||!S.canEdit||!S.tree)return;
  saving=true;setPill('Đang lưu…');
@@ -309,7 +309,7 @@ function conflictDlg(){const d=$('#dlg');d.innerHTML=`<h3>Có người vừa s�
 <div class="acts"><button class="gold" id="c1">Tải bản mới nhất</button><button class="ghost" id="c2">Giữ bản của tôi, ghi đè</button></div><p style="margin-top:10px">Tải bản mới sẽ bỏ những thay đổi bạn chưa lưu.</p>`;d.showModal();
  $('#c1').onclick=()=>{d.close();dirty=false;openTree(S.tree.id)};
  $('#c2').onclick=()=>{d.close();save(true)}}
-addEventListener('beforeunload',e=>{if(dirty||formDirty){e.preventDefault();e.returnValue=''}});
+addEventListener('pagehide',()=>{commitForm();flushNow()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){commitForm();flushNow()}});
 
 /* ---------- chia sẻ ---------- */
@@ -473,16 +473,19 @@ function bindStage(){
 
 /* ---------- bảng thông tin ---------- */
 function render(){drawTree();drawPanel()}
-let formDirty=false;
+let formDirty=false,formTimer=null,formHistFor=null;
 function formValues(){const n=$('#f-name');if(!n)return null;return{name:n.value.trim(),g:$('#f-g').value,note:$('#f-note').value.trim()}}
-function commitForm(){if(!formDirty)return false;formDirty=false;const p=byId()[sel],v=formValues();if(!p||!v)return false;
- if(p.name===v.name&&p.g===v.g&&(p.note||'')===v.note)return false;hist.push(JSON.stringify(D));Object.assign(p,v);changed();return true}
-function askSave(next){const p=byId()[sel],v=formValues();
- if(!formDirty||!p||!v||(p.name===v.name&&p.g===v.g&&(p.note||'')===v.note)){formDirty=false;next();return}
- const d=$('#dlg');d.innerHTML=`<h3>Bạn có muốn cập nhật không?</h3><p>Thông tin của <b>${esc(v.name||p.name||'người này')}</b> đã thay đổi nhưng chưa lưu.</p>
-<div class="acts"><button class="gold" id="as1">Cập nhật</button><button class="ghost" id="as2">Không lưu</button><button class="ghost" id="as3">Ở lại sửa tiếp</button></div>`;
- d.showModal();$('#as1').onclick=()=>{d.close();commitForm();next()};$('#as2').onclick=()=>{d.close();formDirty=false;next()};$('#as3').onclick=()=>d.close()}
-function select(id){if(id===sel)return;askSave(()=>{sel=id;render()})}
+/* tự lưu: cập nhật dữ liệu và cây, không vẽ lại bảng đang gõ */
+function commitForm(){clearTimeout(formTimer);if(!formDirty)return false;formDirty=false;const p=byId()[sel],v=formValues();if(!p||!v)return false;
+ if(!v.name)v.name=p.name;
+ if(p.name===v.name&&p.g===v.g&&(p.note||'')===v.note)return false;
+ if(formHistFor!==sel){hist.push(JSON.stringify(D));formHistFor=sel}
+ Object.assign(p,v);dirty=true;setPill('Chưa lưu…');drawTree();
+ const h=$('#panel h2');if(h){h.textContent=p.name||'(chưa đặt tên)';h.className=p.g==='f'?'f':'m'}
+ const sb2=$('#panel .sub');if(sb2)sb2.textContent=sb2.textContent.replace(/^(Nam|Nữ)/,p.g==='f'?'Nữ':'Nam');
+ clearTimeout(saveTimer);saveTimer=setTimeout(save,600);return true}
+function formChanged(){formDirty=true;clearTimeout(formTimer);formTimer=setTimeout(commitForm,500)}
+function select(id){if(id===sel)return;commitForm();formHistFor=null;sel=id;render()}
 function names(ids,B){return ids.filter(i=>B[i]).map(i=>`<a data-go="${i}" tabindex="0">${esc(B[i].name||'(chưa đặt tên)')}</a>`).join(', ')||'—'}
 function drawPanel(){
  const B=byId(),p=B[sel],el=$('#panel'),ro=!S.canEdit;
@@ -504,8 +507,8 @@ ${!ro&&!D.people.length?'<div class="acts"><button id="first" class="gold">Thêm
 <div class="acts"><button class="ghost" data-a="child">+ Con</button><button class="ghost" data-a="spouse">+ ${p.g==='f'?'Chồng':'Vợ'}</button>
 ${(p.parents||[]).filter(i=>B[i]).length<2?'<button class="ghost" data-a="parent">+ Cha/Mẹ</button>':''}<button class="danger" data-a="del">Xoá</button></div>
 <p id="cf" class="empty"></p>${rel}`;
- const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',()=>{formDirty=true})}
- el.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{if($('#f-g').value!==b.dataset.g)formDirty=true;$('#f-g').value=b.dataset.g;el.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+ const fm=$('#fm');if(fm){fm.onsubmit=e=>{e.preventDefault();if(e.submitter||document.activeElement)document.activeElement.blur();commitForm()};fm.addEventListener('input',formChanged)}
+ el.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{const ch=$('#f-g').value!==b.dataset.g;$('#f-g').value=b.dataset.g;el.querySelectorAll('.gsel button').forEach(x=>x.setAttribute('aria-pressed',x===b));if(ch){formDirty=true;commitForm()}});
  el.querySelectorAll('[data-go]').forEach(a=>{const f=()=>{select(a.dataset.go);center(a.dataset.go)};a.onclick=f;a.onkeydown=e=>{if(e.key==='Enter')f()}});
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,p,b));
 }
