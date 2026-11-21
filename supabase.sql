@@ -57,3 +57,13 @@ create trigger family_trees_guard before insert or update on public.family_trees
 
 grant select on public.family_trees to anon;
 grant select, insert, update, delete on public.family_trees to authenticated;
+
+-- ===== Thêm (21/11/2026): cho sửa gia phả họ Lê không cần đăng nhập =====
+alter table public.family_trees add column if not exists public_edit boolean not null default false;
+-- Trong hàm family_trees_guard, điều kiện bảo vệ là:
+--   if current_user in ('anon','authenticated') and old.owner <> coalesce(auth.uid(), ...) then
+--     ... new.public_edit := old.public_edit;
+create policy "ft_update_public" on public.family_trees for update to anon, authenticated
+  using (public_edit) with check (public_edit);
+grant update (name, data) on public.family_trees to anon;
+-- update public.family_trees set public_edit = true where id = '7a1e0c3b-5f2d-4c8e-9b6a-1e2d3c4b5a60';

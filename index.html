@@ -140,6 +140,7 @@ dialog p{color:var(--mute);font-size:14px;margin:0 0 10px}
 const SUPABASE_URL="https://mzkevskppdetztypdzdt.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_axkJ2_McUZ_uFFHtGkLvLg_V3oBvuTy";
 const T_NAME="family_trees";
+const DEFAULT_TREE="7a1e0c3b-5f2d-4c8e-9b6a-1e2d3c4b5a60"; /* gia phả mở sẵn khi vào trang */
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -177,7 +178,9 @@ function viewLogin(){
 </form>
 ${su?'':'<button class="link" id="forgot" style="margin-top:8px">Quên mật khẩu?</button>'}
 <p class="sub" style="margin:12px 0 0">Đã có tài khoản Sổ Chi Tiêu? Dùng luôn email và mật khẩu đó.</p>
+<button class="link" id="backview" style="margin-top:4px">← Quay lại xem gia phả</button>
 </div></div>`;
+ $('#backview').onclick=()=>go(location.pathname+(param('cay')?'?cay='+param('cay'):''));
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.authTab=b.dataset.tab;S.authMsg='';S.authEmail=$('#ae').value;viewLogin()});
  $('#af').onsubmit=async e=>{e.preventDefault();const email=$('#ae').value.trim(),pass=$('#ap').value,err=$('#aerr'),btn=$('#asub');
   S.authEmail=email;err.className='err';
@@ -186,15 +189,16 @@ ${su?'':'<button class="link" id="forgot" style="margin-top:8px">Quên mật kh�
   btn.disabled=true;err.textContent='';
   try{
    if(su){const{data,error}=await sb.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;
-    if(data.session){S.user=data.session.user;route();return}
+    if(data.session){S.user=data.session.user;afterLogin();return}
     S.authTab='login';viewLogin();$('#aerr').className='err ok';$('#aerr').textContent='Đã tạo tài khoản. Hãy mở email xác nhận gửi tới '+email+', bấm vào đường link, rồi đăng nhập.'}
-   else{const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw error;S.user=data.user;route()}
+   else{const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw error;S.user=data.user;afterLogin()}
   }catch(ex){err.textContent=errText(ex);btn.disabled=false}};
  const f=$('#forgot');if(f)f.onclick=async()=>{const email=$('#ae').value.trim(),err=$('#aerr');
   if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent='Nhập email của bạn vào ô Email trước.';return}
   const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
   if(error){err.textContent=errText(error);return}err.className='err ok';err.textContent='Đã gửi email đặt lại mật khẩu tới '+email+'.'};
 }
+function afterLogin(){const c=param('cay');history.replaceState(null,'',location.pathname+(c?'?cay='+c:''));route()}
 function newPassword(){const d=$('#dlg');d.innerHTML=`<h3>Đặt mật khẩu mới</h3><label for="np">Mật khẩu mới</label><input id="np" type="password" autocomplete="new-password"><div class="err" id="nperr"></div><div class="acts"><button class="gold" id="npok">Lưu mật khẩu</button></div>`;d.showModal();
  $('#npok').onclick=async()=>{const v=$('#np').value;if(v.length<6){$('#nperr').textContent='Mật khẩu cần ít nhất 6 ký tự.';return}
   const{error}=await sb.auth.updateUser({password:v});if(error){$('#nperr').textContent=errText(error);return}d.close();toast('Đã đổi mật khẩu')}}
@@ -222,18 +226,19 @@ async function createTree(){
  if(error){b.disabled=false;toast(errText(error));return}
  go('?cay='+row.id);
 }
-function bindTop(){const h=$('#home');if(h)h.onclick=()=>{if(!S.user){go('./');return}go('./')};const o=$('#out');if(o)o.onclick=async()=>{await flushNow();await sb.auth.signOut();S.user=null;go('./')}}
+function bindTop(){const h=$('#home');if(h)h.onclick=()=>{if(S.tree)fit()};const o=$('#out');if(o)o.onclick=async()=>{await flushNow();await sb.auth.signOut();S.user=null;go(location.pathname)}}
+function loginBtn(){S.authTab='login';S.authMsg='';go(location.pathname+'?dn=1'+(param('cay')?'&cay='+param('cay'):''))}
 
 /* ---------- mở một gia phả ---------- */
 async function openTree(id){
  $('#app').innerHTML='<div class="center">Đang tải gia phả…</div>';
  const{data,error}=await sb.from(T_NAME).select('*').eq('id',id).maybeSingle();
- if(error||!data){document.body.className='';$('#app').innerHTML=(S.user?topbar('<span style="flex:1"></span>'):'')+`<div class="center"><div><h2 style="margin-bottom:8px">Không mở được gia phả này</h2><p>${error?esc(errText(error)):'Có thể link đã bị tắt chia sẻ, hoặc bạn chưa được mời.'}</p>${S.user?'<button id="back">Về danh sách</button>':'<button id="li" class="gold">Đăng nhập</button>'}</div></div>`;
-  bindTop();const bk=$('#back');if(bk)bk.onclick=()=>go('./');const li=$('#li');if(li)li.onclick=()=>{S.screen='login';viewLogin()};return}
+ if(error||!data){document.body.className='';$('#app').innerHTML=(S.user?topbar('<span style="flex:1"></span>'):'')+`<div class="center"><div><h2 style="margin-bottom:8px">Không mở được gia phả này</h2><p>${error?esc(errText(error)):'Có thể link đã bị tắt chia sẻ, hoặc bạn chưa được mời.'}</p><button id="back" onclick="location.reload()">Tải lại</button></div></div>`;
+  bindTop();const bk=$('#back');if(bk)bk.onclick=()=>go('./');const li=$('#li');if(li)li.onclick=loginBtn;return}
  S.tree=data;D=data.data&&Array.isArray(data.data.people)?data.data:{people:[]};
  const email=(S.user&&S.user.email||'').toLowerCase();
  S.isOwner=!!S.user&&data.owner===S.user.id;
- S.canEdit=S.isOwner||(!!email&&(data.editors||[]).includes(email));
+ S.canEdit=!!data.public_edit||S.isOwner||(!!email&&(data.editors||[]).includes(email));
  sel=null;hist=[];query='';dirty=false;
  viewTree();
 }
@@ -245,13 +250,15 @@ function viewTree(){
 ${ro?'':'<button class="hghost" id="undo">Hoàn tác</button>'}
 ${S.isOwner?'<button class="gold" id="share">Chia sẻ</button>':''}
 <button class="hghost" id="more">Thêm…</button>
-${ro?(S.user?'':'<button class="gold" id="li">Đăng nhập</button>'):'<span class="pill" id="pill"></span>'}</div>`)+
+${ro?'':'<span class="pill" id="pill"></span>'}</div>`)+
 `<main><div id="stage"><svg id="svg" aria-label="Cây gia phả"><g id="vp"></g></svg>
 <div class="hint">Kéo để di chuyển · cuộn hoặc chụm hai ngón để phóng to · bấm vào một người để ${ro?'xem':'sửa'}</div>
 <div class="zoom"><button id="zin" aria-label="Phóng to">+</button><button id="zout" aria-label="Thu nhỏ">−</button><button id="zfit" aria-label="Vừa màn hình" style="font-size:15px">⤢</button></div></div>
 <aside id="panel"></aside></main>`;
  bindTop();bindStage();
- const li=$('#li');if(li)li.onclick=()=>{S.screen='login';viewLogin()};
+ const li=$('#li');if(li)li.onclick=loginBtn;
+ const mine=$('#mine');if(mine)mine.onclick=()=>go(location.pathname+'?ds=1');
+ const lo=$('#lo');if(lo)lo.onclick=async()=>{await flushNow();await sb.auth.signOut();S.user=null;openTree(S.tree.id)};
  $('#clan').onchange=e=>{if(ro)return;S.tree.name=e.target.value.trim()||'Gia phả';changed()};
  $('#search').oninput=e=>{query=e.target.value;drawTree();const q=query.trim().toLowerCase();if(!q)return;const B=byId();const n=nodes.find(n=>(B[n.id].name||'').toLowerCase().includes(q));if(n)center(n.id)};
  const u=$('#undo');if(u)u.onclick=()=>{const h=hist.pop();if(!h){toast('Không còn gì để hoàn tác');return}D=JSON.parse(h);if(sel&&!byId()[sel])sel=null;changed()};
@@ -427,7 +434,7 @@ function select(id){sel=id;render()}
 function names(ids,B){return ids.filter(i=>B[i]).map(i=>`<a data-go="${i}" tabindex="0">${esc(B[i].name||'(chưa đặt tên)')}</a>`).join(', ')||'—'}
 function drawPanel(){
  const B=byId(),p=B[sel],el=$('#panel'),ro=!S.canEdit;
- if(!p){el.innerHTML=`<h2>${esc(S.tree.name)}</h2><p class="sub">${ro?'Bạn đang xem gia phả.':'Mọi thay đổi tự lưu lên mạng.'}</p>
+ if(!p){el.innerHTML=`<h2>${esc(S.tree.name)}</h2><p class="sub">${ro?'Bạn đang xem gia phả.':'Mọi thay đổi tự lưu lên mạng, mở trên máy nào cũng thấy.'}</p>
 <p class="empty">Bấm vào <b>một người trên cây</b> để ${ro?'xem thông tin':'sửa thông tin hoặc thêm con, vợ/chồng, cha/mẹ'}.</p>
 ${S.isOwner?'<p class="empty">Bấm <b>Chia sẻ</b> để mời người nhà cùng sửa hoặc gửi link cho người khác xem.</p>':''}
 ${!ro&&!D.people.length?'<div class="acts"><button id="first" class="gold">Thêm người đầu tiên</button></div>':''}`;
@@ -468,10 +475,7 @@ function act(a,p,btn){
 async function route(){
  if(!sb){$('#app').innerHTML='<div class="center">Không tải được thư viện kết nối. Kiểm tra mạng rồi tải lại trang.</div>';return}
  await flushNow();
- const id=param('cay');
- if(id){openTree(id);return}
- if(!S.user){viewLogin();return}
- viewList();
+ openTree(param('cay')||DEFAULT_TREE);
 }
 addEventListener('popstate',route);
 (async()=>{
